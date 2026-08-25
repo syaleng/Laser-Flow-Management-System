@@ -111,7 +111,7 @@ export function CustomerDetailPage() {
 
       <CustomerDesignOrdersPanel customerId={data.id} active={data.is_active} />
       <section className="mt-6" aria-live="polite">
-        <div className="mb-4 flex items-center gap-3"><ReceiptText className="size-5 text-brand-600" /><h2 className="text-xl font-bold text-slate-950">د مشتري لجر</h2></div>
+        <div className="mb-4 flex items-center gap-3"><ReceiptText className="size-5 text-brand-600" /><h2 className="text-xl font-bold text-slate-950">د حساب تفصیل</h2></div>
 
         {ledger.isLoading && <div className="rounded-2xl border border-slate-200 bg-white p-8 text-center text-slate-500">د لجر تاریخچه راځي…</div>}
         {ledger.isError && <div role="alert" className="rounded-xl bg-red-50 p-5 text-red-700">د لجر تاریخچه ترلاسه نه شو. مهرباني وکړئ بیا هڅه وکړئ.</div>}
@@ -123,40 +123,40 @@ export function CustomerDetailPage() {
                 <p className="text-sm text-slate-500">مشتري</p>
                 <h3 className="text-xl font-bold text-slate-950">{ledger.data.customer_name}</h3>
               </div>
-              <div className="rounded-xl bg-slate-100 px-3 py-2 text-sm text-slate-600">د لجر مجموعی: {ledger.data.entries.length} ثبت</div>
+              <div className="rounded-xl bg-slate-100 px-3 py-2 text-sm text-slate-600">د حساب ثبتونه: {ledger.data.entries.length}</div>
             </div>
 
-            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+            <div className="grid gap-4 sm:grid-cols-3">
               {([
                 ["ټول فرمایشونه", money(ledger.data.total_orders_amount), ReceiptText, "bg-blue-50 text-blue-600"],
                 ["ټولې ورکړې", money(ledger.data.total_paid_amount), CreditCard, "bg-emerald-50 text-emerald-600"],
-                ["باقي پور", money(ledger.data.remaining_debt_balance), WalletCards, "bg-rose-50 text-rose-600"],
+                ["پاتې حساب", money(ledger.data.remaining_debt_balance), WalletCards, "bg-rose-50 text-rose-600"],
               ] as [string, string, LucideIcon, string][]).map(([title, value, Icon, color]) => (
                 <article key={title} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm"><div className={`mb-4 grid size-10 place-items-center rounded-xl ${color}`}><Icon className="size-5" /></div><p className="text-sm text-slate-500">{title}</p><p dir="ltr" className="mt-2 text-xl font-bold text-slate-950">{value}</p></article>
               ))}
             </div>
 
             {ledger.data.entries.length === 0 ? (
-              <p className="mt-5 rounded-xl border border-dashed border-slate-300 bg-slate-50 p-6 text-center text-sm text-slate-500">تر اوسه د دې مشتري لپاره هيڅ لجر ثبت نه دی شوی.</p>
+              <p className="mt-5 rounded-xl border border-dashed border-slate-300 bg-slate-50 p-6 text-center text-sm text-slate-500">تر اوسه د حساب معلومات نشته</p>
             ) : (
               <div className="mt-5 overflow-x-auto">
                 <table className="w-full min-w-[680px] text-right text-sm">
                   <thead className="bg-slate-50 text-xs text-slate-500">
                     <tr>
                       <th className="px-4 py-3">نیټه</th>
-                      <th className="px-4 py-3">نوع</th>
-                      <th className="px-4 py-3">توضیح</th>
+                      <th className="px-4 py-3">ډول</th>
+                      <th className="px-4 py-3">تشریح</th>
                       <th className="px-4 py-3">مقدار</th>
-                      <th className="px-4 py-3">بیلانس</th>
+                      <th className="px-4 py-3">پاتې بیلانس</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
                     {ledger.data.entries.map((entry) => (
                       <tr key={`${entry.date}-${entry.type}-${entry.description}-${entry.source_id}`}>
                         <td className="px-4 py-3 text-slate-600">{new Intl.DateTimeFormat("en-GB", { year: "numeric", month: "short", day: "numeric" }).format(new Date(entry.date))}</td>
-                        <td className={`px-4 py-3 font-semibold ${entry.type === "Order" ? "text-blue-700" : "text-emerald-700"}`}>{entry.type}</td>
+                        <td className={`px-4 py-3 font-semibold ${entry.type === "Order" ? "text-rose-700" : "text-emerald-700"}`}>{entry.type === "Order" ? "فرمایش (DEBIT)" : "ورکړه (CREDIT)"}</td>
                         <td className="px-4 py-3 text-slate-700">{entry.description}</td>
-                        <td className={`px-4 py-3 font-bold ${Number(entry.amount) >= 0 ? "text-blue-700" : "text-emerald-700"}`} dir="ltr">{Number(entry.amount) >= 0 ? "+" : "-"}{money(Math.abs(Number(entry.amount)))}</td>
+                        <td className={`px-4 py-3 font-bold ${entry.type === "Order" ? "text-rose-700" : "text-emerald-700"}`} dir="ltr">{entry.type === "Order" ? "+" : "-"}{money(Math.abs(Number(entry.amount)))}</td>
                         <td className="px-4 py-3 font-semibold text-slate-900" dir="ltr">{money(entry.balance_after_transaction)}</td>
                       </tr>
                     ))}

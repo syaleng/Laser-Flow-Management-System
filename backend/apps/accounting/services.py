@@ -71,9 +71,10 @@ def get_customer_balance(*, customer: Customer) -> Decimal:
 def get_customer_ledger(*, customer: Customer, limit=None):
     qs = CustomerLedgerEntry.objects.filter(customer=customer).select_related("created_by")
     if qs.exists():
+        ordered_qs = qs.order_by("-posted_at", "-created_at")
         if limit is not None:
-            qs = qs[:limit]
-        return qs.order_by("-posted_at", "-created_at")
+            return list(ordered_qs[:limit])
+        return list(ordered_qs)
 
     orders = (
         DesignOrder.objects.filter(customer=customer)
