@@ -27,7 +27,7 @@ describe("role permissions", () => {
 
   it("gives operators operational access without financial access", () => {
     const operator = buildUser("OPERATOR");
-    expect(userHasPermission(operator, "create_laser_jobs")).toBe(true);
+    expect(userHasPermission(operator, "manage_design_orders")).toBe(true);
     expect(userHasPermission(operator, "manage_payments")).toBe(false);
   });
 
@@ -37,4 +37,3 @@ describe("role permissions", () => {
     expect(userHasRole(inactiveOwner, "OWNER")).toBe(false);
   });
 });
-

@@ -10,6 +10,8 @@ env = environ.Env(
     DJANGO_ALLOWED_HOSTS=(list, []),
     DJANGO_CORS_ALLOWED_ORIGINS=(list, []),
     DJANGO_CSRF_TRUSTED_ORIGINS=(list, []),
+    DEFAULT_PAYMENT_TERMS_DAYS=(int, 30),
+    MAX_DESIGN_UPLOAD_SIZE_MB=(int, 25),
 )
 environ.Env.read_env(BASE_DIR.parent / ".env")
 
@@ -35,7 +37,11 @@ THIRD_PARTY_APPS = [
 LOCAL_APPS = [
     "apps.common",
     "apps.accounts",
+    "apps.accounting",
     "apps.customers",
+    "apps.design_orders",
+    "apps.daily_journal",
+    "apps.reports",
 ]
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
 
@@ -91,6 +97,8 @@ STATIC_ROOT = BASE_DIR / "staticfiles"
 STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
 MEDIA_URL = "/media/"
 MEDIA_ROOT = BASE_DIR / "media"
+DEFAULT_PAYMENT_TERMS_DAYS = env("DEFAULT_PAYMENT_TERMS_DAYS")
+MAX_DESIGN_UPLOAD_SIZE_MB = env("MAX_DESIGN_UPLOAD_SIZE_MB")
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 CORS_ALLOWED_ORIGINS = env("DJANGO_CORS_ALLOWED_ORIGINS")
@@ -133,6 +141,9 @@ SPECTACULAR_SETTINGS = {
     "VERSION": "1.0.0",
     "SERVE_INCLUDE_SCHEMA": False,
     "COMPONENT_SPLIT_REQUEST": True,
+    "ENUM_NAME_OVERRIDES": {
+        "DesignOrderStatusEnum": "apps.design_orders.models.DesignOrderStatus",
+    },
 }
 
 LOGGING = {

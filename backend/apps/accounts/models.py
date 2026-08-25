@@ -45,3 +45,30 @@ class User(BaseModel, AbstractBaseUser, PermissionsMixin):
         from .authorization import user_has_capability
 
         return user_has_capability(self, capability)
+
+
+class LoginActivity(BaseModel):
+    user = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="login_activities",
+    )
+    username = models.CharField(max_length=254, db_index=True)
+    successful = models.BooleanField(db_index=True)
+    user_role = models.CharField(max_length=20, choices=UserRole.choices, blank=True)
+    ip_address = models.GenericIPAddressField(null=True, blank=True)
+    user_agent = models.CharField(max_length=500, blank=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+        indexes = [
+            models.Index(
+                fields=["-created_at", "successful"], name="login_activity_time_status_idx"
+            )
+        ]
+
+    def __str__(self) -> str:
+        status = "successful" if self.successful else "failed"
+        return f"{self.username} - {status}"

@@ -3,7 +3,7 @@ import axios, { AxiosError, type InternalAxiosRequestConfig } from "axios";
 import type { ApiEnvelope, ApiErrorPayload, RefreshResponse } from "@/types/api";
 
 const API_BASE_URL =
-  import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8000/api/v1";
+  import.meta.env.VITE_API_BASE_URL ?? "/api/v1";
 
 interface RetryableRequestConfig extends InternalAxiosRequestConfig {
   _retry?: boolean;
@@ -62,12 +62,19 @@ function firstValidationMessage(details: unknown): string | undefined {
 
 function normalizeApiError(error: AxiosError<ApiErrorPayload>): ApiError {
   const payload = error.response?.data;
+  const statusMessage =
+    error.response?.status === 401
+      ? "Your session has expired. Please sign in again."
+      : error.response?.status === 403
+        ? "You do not have permission to view this information."
+        : undefined;
   const message =
+    statusMessage ??
     firstValidationMessage(payload?.error?.details) ??
     payload?.error?.message ??
     (error.code === "ECONNABORTED"
-      ? "The server took too long to respond."
-      : "Unable to communicate with the server.");
+      ? "The server took too long to respond. Please try again."
+      : "Unable to connect to the server. Please try again.");
   return new ApiError(message, error.response?.status ?? 0, payload);
 }
 
@@ -114,4 +121,3 @@ apiClient.interceptors.response.use(
     throw normalizeApiError(error);
   },
 );
-

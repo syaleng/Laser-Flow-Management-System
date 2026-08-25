@@ -2,10 +2,10 @@ import { lazy, Suspense, type ReactNode } from "react";
 import { createBrowserRouter, Navigate } from "react-router-dom";
 
 import { DashboardPage } from "@/features/dashboard/DashboardPage";
+import { DailyJournalPage } from "@/features/daily-journal/DailyJournalPage";
 import { LoginPage } from "@/features/auth/LoginPage";
 import { PermissionRoute } from "@/features/auth/PermissionRoute";
 import { ProtectedRoute } from "@/features/auth/ProtectedRoute";
-import { ComingSoonPage } from "@/features/shared/ComingSoonPage";
 import { AppLayout } from "@/layouts/AppLayout";
 
 const CustomersPage = lazy(() =>
@@ -28,9 +28,15 @@ const CustomerEditPage = lazy(() =>
     default: module.CustomerEditPage,
   })),
 );
+const DesignOrdersPage = lazy(() => import("@/features/design-orders/DesignOrdersPage"));
+const DesignOrderCreatePage = lazy(() => import("@/features/design-orders/DesignOrderCreatePage").then((module) => ({ default: module.DesignOrderCreatePage })));
+const DesignOrderDetailPage = lazy(() => import("@/features/design-orders/DesignOrderDetailPage").then((module) => ({ default: module.DesignOrderDetailPage })));
+const DesignOrderEditPage = lazy(() => import("@/features/design-orders/DesignOrderEditPage").then((module) => ({ default: module.DesignOrderEditPage })));
+const PaymentsPage = lazy(() => import("@/features/payments/PaymentsPage").then((module) => ({ default: module.PaymentsPage })));
+const ReportsPage = lazy(() => import("@/features/reports/ReportsPage").then((module) => ({ default: module.ReportsPage })));
 
 function lazyPage(page: ReactNode) {
-  return <Suspense fallback={<div className="text-slate-500">Loading page…</div>}>{page}</Suspense>;
+  return <Suspense fallback={<div className="text-slate-500">پاڼه راځي…</div>}>{page}</Suspense>;
 }
 
 export const router = createBrowserRouter([
@@ -51,10 +57,18 @@ export const router = createBrowserRouter([
             { path: "customers/:customerId/edit", element: lazyPage(<CustomerEditPage />) },
           ],
         },
-        { path: "design-orders", element: <ComingSoonPage /> },
-        { path: "payments", element: <ComingSoonPage /> },
-        { path: "expenses", element: <ComingSoonPage /> },
-        { path: "reports", element: <ComingSoonPage /> },
+        {
+          element: <PermissionRoute permission="manage_design_orders" />,
+          children: [
+            { path: "design-orders", element: lazyPage(<DesignOrdersPage />) },
+            { path: "design-orders/new", element: lazyPage(<DesignOrderCreatePage />) },
+            { path: "design-orders/:orderId", element: lazyPage(<DesignOrderDetailPage />) },
+            { path: "design-orders/:orderId/edit", element: lazyPage(<DesignOrderEditPage />) },
+          ],
+        },
+        { element: <PermissionRoute permission="manage_payments" />, children: [{ path: "payments", element: lazyPage(<PaymentsPage />) }] },
+        { element: <PermissionRoute permission="manage_expenses" />, children: [{ path: "expenses", element: <DailyJournalPage /> }] },
+        { element: <PermissionRoute permission="view_reports" />, children: [{ path: "reports", element: lazyPage(<ReportsPage />) }] },
       ],
     }],
   },

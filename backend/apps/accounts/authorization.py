@@ -6,7 +6,8 @@ from .models import UserRole
 class Capability(StrEnum):
     MANAGE_USERS = "manage_users"
     MANAGE_CUSTOMERS = "manage_customers"
-    CREATE_LASER_JOBS = "create_laser_jobs"
+    MANAGE_DESIGN_ORDERS = "manage_design_orders"
+    MANAGE_DESIGN_CATEGORIES = "manage_design_categories"
     MANAGE_PAYMENTS = "manage_payments"
     MANAGE_EXPENSES = "manage_expenses"
     VIEW_REPORTS = "view_reports"
@@ -19,13 +20,14 @@ ROLE_CAPABILITIES: dict[str, frozenset[Capability]] = {
     UserRole.MANAGER: frozenset(
         {
             Capability.MANAGE_CUSTOMERS,
-            Capability.CREATE_LASER_JOBS,
+            Capability.MANAGE_DESIGN_ORDERS,
+            Capability.MANAGE_DESIGN_CATEGORIES,
             Capability.MANAGE_PAYMENTS,
             Capability.MANAGE_EXPENSES,
             Capability.VIEW_REPORTS,
         }
     ),
-    UserRole.OPERATOR: frozenset({Capability.MANAGE_CUSTOMERS, Capability.CREATE_LASER_JOBS}),
+    UserRole.OPERATOR: frozenset({Capability.MANAGE_CUSTOMERS, Capability.MANAGE_DESIGN_ORDERS}),
     UserRole.VIEWER: frozenset({Capability.VIEW_REPORTS}),
 }
 

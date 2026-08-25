@@ -1,7 +1,7 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 
-from .models import User
+from .models import LoginActivity, User
 
 
 @admin.register(User)
@@ -29,3 +29,27 @@ class UserAdmin(BaseUserAdmin):
             },
         ),
     )
+
+
+@admin.register(LoginActivity)
+class LoginActivityAdmin(admin.ModelAdmin):
+    list_display = ("username", "successful", "user_role", "ip_address", "created_at")
+    list_filter = ("successful", "user_role", "created_at")
+    search_fields = ("username", "ip_address")
+    readonly_fields = (
+        "user",
+        "username",
+        "successful",
+        "user_role",
+        "ip_address",
+        "user_agent",
+        "created_at",
+        "updated_at",
+    )
+    ordering = ("-created_at",)
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False

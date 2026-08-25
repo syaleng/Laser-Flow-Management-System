@@ -4,8 +4,10 @@ import type { ApiEnvelope } from "@/types/api";
 import type {
   Customer,
   CustomerInput,
+  CustomerLedger,
   CustomerListParams,
   CustomerPage,
+  CustomerStatement,
 } from "./types";
 
 export async function getCustomers(params: CustomerListParams): Promise<CustomerPage> {
@@ -15,6 +17,20 @@ export async function getCustomers(params: CustomerListParams): Promise<Customer
 
 export async function getCustomer(customerId: string): Promise<Customer> {
   const { data } = await apiClient.get<ApiEnvelope<Customer>>(`/customers/${customerId}/`);
+  return data.data;
+}
+
+export async function getCustomerStatement(customerId: string): Promise<CustomerStatement> {
+  const { data } = await apiClient.get<ApiEnvelope<CustomerStatement>>(
+    `/customers/${customerId}/statement/`,
+  );
+  return data.data;
+}
+
+export async function getCustomerLedger(customerId: string): Promise<CustomerLedger> {
+  const { data } = await apiClient.get<ApiEnvelope<CustomerLedger>>(
+    `/customers/${customerId}/ledger/`,
+  );
   return data.data;
 }
 

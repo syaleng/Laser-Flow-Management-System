@@ -43,21 +43,26 @@ export function CustomerForm({
 
   return (
     <form
-      className="space-y-6 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm"
+      dir="rtl"
+      className="space-y-6 rounded-2xl border border-slate-200 bg-white p-6 text-right shadow-sm sm:p-7"
       onSubmit={handleSubmit((values) => onSubmit(values))}
       noValidate
     >
+      <div className="rounded-xl border border-blue-100 bg-blue-50 px-4 py-3 text-sm leading-6 text-blue-900">
+        <strong className="block">څنګه یې ډک کړئ؟</strong>
+        یوازې د ستوري (*) لرونکي معلومات ضروري دي. نور معلومات که نه لرئ، تش یې پرېږدئ.
+      </div>
       <div className="grid gap-5 md:grid-cols-2">
         <label className="block text-sm font-medium text-slate-700 md:col-span-2">
-          Full name <span className="text-red-500">*</span>
-          <input className={inputClass} autoComplete="name" {...register("full_name")} />
+          بشپړ نوم <span className="text-red-500">*</span>
+          <input className={inputClass} autoComplete="name" placeholder="لکه: احمد خان" {...register("full_name")} />
           {errors.full_name && (
             <span className="mt-1 block text-sm text-red-600">{errors.full_name.message}</span>
           )}
         </label>
 
         <label className="block text-sm font-medium text-slate-700">
-          Phone number
+          د موبایل شمېره <span className="text-red-500">*</span>
           <input
             className={inputClass}
             inputMode="tel"
@@ -71,7 +76,7 @@ export function CustomerForm({
         </label>
 
         <label className="block text-sm font-medium text-slate-700">
-          WhatsApp number
+          WhatsApp شمېره
           <input
             className={inputClass}
             inputMode="tel"
@@ -94,16 +99,16 @@ export function CustomerForm({
         />
         <span>
           <span className="block text-sm font-semibold text-slate-900">
-            Customer consents to WhatsApp messages
+            د WhatsApp خبرتیا اجازه
           </span>
           <span className="mt-1 block text-sm leading-5 text-slate-600">
-            Enable only after the customer agrees to receive order and future balance reminders.
+            فعال یې کړئ که مشتري غواړي د WhatsApp له لارې خبرتیاوې ترلاسه کړي.
           </span>
         </span>
       </label>
 
       <label className="block text-sm font-medium text-slate-700">
-        Address
+        پته
         <textarea className={inputClass} rows={3} {...register("address")} />
         {errors.address && (
           <span className="mt-1 block text-sm text-red-600">{errors.address.message}</span>
@@ -111,8 +116,8 @@ export function CustomerForm({
       </label>
 
       <label className="block text-sm font-medium text-slate-700">
-        Notes
-        <textarea className={inputClass} rows={4} {...register("notes")} />
+        یادښت
+        <textarea className={inputClass} rows={4} placeholder="د مشتري په اړه اړین معلومات (اختیاري)" {...register("notes")} />
         {errors.notes && (
           <span className="mt-1 block text-sm text-red-600">{errors.notes.message}</span>
         )}
@@ -124,12 +129,12 @@ export function CustomerForm({
         </div>
       )}
 
-      <div className="flex flex-col-reverse gap-3 border-t border-slate-100 pt-5 sm:flex-row sm:justify-end">
+      <div className="flex flex-col-reverse gap-3 border-t border-slate-100 pt-5 sm:flex-row sm:justify-start">
         <Link
           to={cancelTo}
           className="inline-flex min-h-11 items-center justify-center rounded-xl border border-slate-300 px-4 font-semibold text-slate-700 hover:bg-slate-50"
         >
-          Cancel
+          لغوه کول
         </Link>
         <Button type="submit" disabled={isSubmitting}>
           {isSubmitting && <LoaderCircle className="mr-2 size-4 animate-spin" />}

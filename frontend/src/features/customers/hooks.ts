@@ -4,6 +4,8 @@ import {
   archiveCustomer,
   createCustomer,
   getCustomer,
+  getCustomerLedger,
+  getCustomerStatement,
   getCustomers,
   restoreCustomer,
   updateCustomer,
@@ -29,6 +31,22 @@ export function useCustomer(customerId: string) {
   return useQuery({
     queryKey: customerKeys.detail(customerId),
     queryFn: () => getCustomer(customerId),
+    enabled: Boolean(customerId),
+  });
+}
+
+export function useCustomerStatement(customerId: string) {
+  return useQuery({
+    queryKey: [...customerKeys.detail(customerId), "statement"],
+    queryFn: () => getCustomerStatement(customerId),
+    enabled: Boolean(customerId),
+  });
+}
+
+export function useCustomerLedger(customerId: string) {
+  return useQuery({
+    queryKey: [...customerKeys.detail(customerId), "ledger"],
+    queryFn: () => getCustomerLedger(customerId),
     enabled: Boolean(customerId),
   });
 }

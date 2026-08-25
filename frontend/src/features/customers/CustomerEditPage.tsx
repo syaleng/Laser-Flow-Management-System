@@ -15,9 +15,9 @@ export function CustomerEditPage() {
   const mutation = useUpdateCustomer(customerId);
   const [error, setError] = useState<string | null>(null);
 
-  if (customer.isLoading) return <div className="text-slate-500">Loading customer…</div>;
+  if (customer.isLoading) return <div className="text-slate-500">معلومات راځي…</div>;
   if (!customer.data || customer.isError) {
-    return <div role="alert" className="rounded-xl bg-red-50 p-5 text-red-700">Unable to load this customer.</div>;
+    return <div role="alert" className="rounded-xl bg-red-50 p-5 text-red-700">د مشتري معلومات را نه غلل.</div>;
   }
 
   const submit = async (values: CustomerFormValues) => {
@@ -26,18 +26,19 @@ export function CustomerEditPage() {
       await mutation.mutateAsync(values);
       navigate(`/customers/${customerId}`, { replace: true });
     } catch (caught) {
-      setError(caught instanceof ApiError ? caught.message : "Unable to update customer.");
+      setError(caught instanceof ApiError ? caught.message : "د مشتري معلومات بدل نه شول.");
     }
   };
 
   return (
     <section className="mx-auto max-w-4xl">
       <Link to={`/customers/${customerId}`} className="mb-5 inline-flex items-center gap-2 text-sm font-semibold text-slate-600 hover:text-slate-900">
-        <ArrowLeft className="size-4" /> Back to customer
+        <ArrowLeft className="size-4" /> د مشتري معلوماتو ته بېرته
       </Link>
       <div className="mb-7">
-        <p className="text-sm font-semibold text-brand-600">CUSTOMER ACCOUNT</p>
-        <h1 className="mt-1 text-3xl font-bold tracking-tight text-slate-950">Edit customer</h1>
+        <p className="text-sm font-semibold text-brand-600">مشتري</p>
+        <h1 className="mt-1 text-3xl font-bold tracking-tight text-slate-950">د مشتري معلومات بدلول</h1>
+        <p className="mt-2 text-slate-500">ضروري معلومات سم کړئ او بیا «بدلونونه ساتل» کېکاږئ.</p>
       </div>
       <CustomerForm
         defaultValues={{
@@ -48,7 +49,7 @@ export function CustomerEditPage() {
           address: customer.data.address,
           notes: customer.data.notes,
         }}
-        submitLabel="Save changes"
+        submitLabel="بدلونونه ساتل"
         cancelTo={`/customers/${customerId}`}
         serverError={error}
         onSubmit={submit}
@@ -56,4 +57,3 @@ export function CustomerEditPage() {
     </section>
   );
 }
-

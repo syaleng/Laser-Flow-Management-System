@@ -13,7 +13,7 @@ from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 
 from . import services
 from .authorization import Capability
-from .models import User
+from .models import LoginActivity, User
 from .permissions import HasRequiredCapability
 from .serializers import (
     ChangePasswordSerializer,
@@ -43,15 +43,34 @@ class LoginView(TokenObtainPairView):
     serializer_class = LoginSerializer
 
     def post(self, request, *args, **kwargs):
+        username = str(request.data.get("email", "")).strip().lower()[:254]
         serializer = self.get_serializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
+        try:
+            serializer.is_valid(raise_exception=True)
+        except ValidationError:
+            attempted_user = User.objects.filter(email__iexact=username).only("id", "role").first()
+            self._record_activity(request, username, attempted_user, successful=False)
+            raise
         payload = serializer.validated_data
+        authenticated_user = User.objects.only("id", "role").get(email__iexact=username)
+        self._record_activity(request, username, authenticated_user, successful=True)
         response = Response(
             {"data": {"access": payload["access"], "user": payload["user"]}},
             status=status.HTTP_200_OK,
         )
         set_refresh_cookie(response, payload["refresh"])
         return response
+
+    @staticmethod
+    def _record_activity(request, username, user, *, successful):
+        LoginActivity.objects.create(
+            user=user,
+            username=username,
+            successful=successful,
+            user_role=user.role if user else "",
+            ip_address=request.META.get("REMOTE_ADDR") or None,
+            user_agent=request.META.get("HTTP_USER_AGENT", "")[:500],
+        )
 
 
 class CookieTokenRefreshView(TokenRefreshView):

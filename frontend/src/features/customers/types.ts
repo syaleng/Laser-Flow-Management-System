@@ -45,3 +45,47 @@ export interface CustomerPage {
   meta: PageMeta;
 }
 
+export interface CustomerStatementOrder {
+  order_number: string;
+  date: string;
+  total_amount: string;
+  paid_amount: string;
+  remaining_amount: string;
+  payment_status: "CASH" | "PARTIAL" | "CREDIT" | "FULLY_PAID";
+}
+
+export interface CustomerStatementPayment {
+  payment_date: string;
+  amount: string;
+  order_number: string;
+  recorded_user: string;
+  note: string;
+}
+
+export interface CustomerStatement {
+  total_orders: number;
+  total_amount: string;
+  total_paid: string;
+  remaining_balance: string;
+  orders: CustomerStatementOrder[];
+  payments: CustomerStatementPayment[];
+}
+
+export interface CustomerLedgerEntry {
+  date: string;
+  type: "Order" | "Payment";
+  description: string;
+  amount: string;
+  balance_after_transaction: string;
+  source_type: string;
+  source_id: string;
+}
+
+export interface CustomerLedger {
+  customer_name: string;
+  total_orders_amount: string;
+  total_paid_amount: string;
+  remaining_debt_balance: string;
+  entries: CustomerLedgerEntry[];
+}
+

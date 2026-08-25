@@ -4,7 +4,7 @@ from rest_framework.test import APIClient
 from rest_framework_simplejwt.token_blacklist.models import BlacklistedToken
 
 from apps.accounts.authorization import Capability
-from apps.accounts.models import User, UserRole
+from apps.accounts.models import LoginActivity, User, UserRole
 
 
 @pytest.fixture
@@ -33,6 +33,27 @@ def test_login_sets_refresh_cookie_and_returns_access_token(client, owner):
     assert "access" in response.data["data"]
     assert response.data["data"]["user"]["role"] == UserRole.OWNER
     assert response.cookies["laserflow_refresh"]["httponly"] is True
+    activity = LoginActivity.objects.get()
+    assert activity.successful is True
+    assert activity.username == owner.email
+    assert activity.user_role == UserRole.OWNER
+
+
+@pytest.mark.django_db
+def test_failed_login_is_recorded_without_password(client, owner):
+    response = client.post(
+        reverse("accounts:login"),
+        {"email": owner.email, "password": "wrong-password"},
+        HTTP_USER_AGENT="LaserFlow test browser",
+    )
+
+    assert response.status_code == 400
+    activity = LoginActivity.objects.get()
+    assert activity.successful is False
+    assert activity.username == owner.email
+    assert activity.user_role == UserRole.OWNER
+    assert activity.user_agent == "LaserFlow test browser"
+    assert not hasattr(activity, "password")
 
 
 @pytest.mark.django_db
@@ -155,7 +176,7 @@ def test_owner_cannot_deactivate_self(client, owner):
 def test_role_capabilities_are_explicit():
     assert Capability.MANAGE_USERS in owner_capabilities()
     assert Capability.MANAGE_USERS not in manager_capabilities()
-    assert Capability.CREATE_LASER_JOBS in manager_capabilities()
+    assert Capability.MANAGE_DESIGN_ORDERS in manager_capabilities()
 
 
 def owner_capabilities():

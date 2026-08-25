@@ -1,6 +1,6 @@
 # LaserFlow Management System
 
-LaserFlow is a web-based workflow and financial management system designed specifically for laser-cutting shops. Phase 1 provides the secure application foundation: PostgreSQL-backed Django REST APIs, email-based users and roles, JWT authentication, and a protected React application shell.
+LaserFlow is a web-based workflow and financial management system designed specifically for laser-cut clothing decoration shops. It provides a secure PostgreSQL-backed Django REST API, email-based users and roles, JWT authentication, and a protected React application.
 
 ## Architecture
 
@@ -10,7 +10,7 @@ React SPA → Nginx → Django REST API → PostgreSQL
 
 The backend is a modular Django monolith. Business modules will be isolated as Django apps with service and selector layers. The frontend is organized by business feature. This keeps deployment simple while preserving clear domain boundaries.
 
-## Phase 1 features
+## Implemented features
 
 - Django 5.2 LTS and Django REST Framework
 - PostgreSQL-only development/production configuration
@@ -22,6 +22,11 @@ The backend is a modular Django monolith. Business modules will be isolated as D
 - Responsive protected navigation and dashboard shell
 - OpenAPI schema, Swagger UI, health check, uniform API errors, and pagination
 - Containerized development and production definitions
+- Customer management, statements, and outstanding balances
+- Design-order workflow, payment history, and overdue reminders
+- Daily journal with expenses, loans, payables, and repayment history
+- Live financial dashboard with date filtering and charts
+- Financial, customer, debt, and cash-movement reports with CSV and print output
 
 ## Repository structure
 
@@ -111,13 +116,57 @@ POST   /api/v1/customers/{id}/restore/
 Customer lists support search, active/archive status, WhatsApp consent, ordering,
 and pagination. Customer records are archived rather than deleted.
 
+Phase 2B design order API:
+
+```text
+GET    /api/v1/design-orders/
+POST   /api/v1/design-orders/
+GET    /api/v1/design-orders/{id}/
+PATCH  /api/v1/design-orders/{id}/
+POST   /api/v1/design-orders/{id}/status/
+GET    /api/v1/design-orders/{id}/history/
+GET    /api/v1/design-categories/
+POST   /api/v1/design-categories/
+PATCH  /api/v1/design-categories/{id}/
+POST   /api/v1/design-categories/{id}/archive/
+POST   /api/v1/design-categories/{id}/restore/
+```
+
+Design orders follow the controlled workflow `NEW -> DESIGN_PREPARATION -> CUTTING
+-> READY_FOR_DELIVERY -> DELIVERED`, with cancellation permitted before delivery.
+The server calculates order totals and records every status transition. Three files
+remain distinct: the customer's reference image, the prepared design preview, and
+the CorelDRAW/AI/SVG/DXF/PDF source used for laser cutting. Configure upload limits
+with `MAX_DESIGN_UPLOAD_SIZE_MB` and default delivered-order terms with
+`DEFAULT_PAYMENT_TERMS_DAYS`.
+
 Only owners may access user-management endpoints. Role authorization uses named business capabilities rather than direct role checks, allowing future modules to enforce the same policies consistently.
+
+Financial APIs:
+
+```text
+GET    /api/v1/payments/
+GET    /api/v1/journal/dashboard/
+GET    /api/v1/journal/summary/
+GET    /api/v1/journal/reports/
+GET    /api/v1/journal/expenses/
+POST   /api/v1/journal/expenses/
+GET    /api/v1/journal/loans/
+POST   /api/v1/journal/loans/{id}/repayments/
+GET    /api/v1/journal/payables/
+POST   /api/v1/journal/payables/{id}/repayments/
+GET    /api/v1/reports/
+```
+
+The dashboard and reports derive values from order payment history, expenses, loans,
+payables, and repayment records. They do not maintain duplicate financial ledgers.
 
 | Capability | Owner | Manager | Operator | Viewer |
 |---|---:|---:|---:|---:|
 | Manage users | Yes | No | No | No |
 | Manage customers | Yes | Yes | Yes | No |
-| Create laser jobs | Yes | Yes | Yes | No |
+| Manage design orders | Yes | Yes | Yes | No |
+| Manage design categories | Yes | Yes | No | No |
 | Manage payments | Yes | Yes | No | No |
 | Manage expenses | Yes | Yes | No | No |
 | View reports | Yes | Yes | No | Yes |
@@ -168,6 +217,10 @@ docker compose -f compose.prod.yaml exec -T db pg_restore -U laserflow -d laserf
 
 Test restoration against a separate database first. Never run `--clean` against the live database without an approved recovery procedure.
 
-## Next phase
+## Release readiness
 
-Phase 2 adds customers, laser jobs, payments, expenses, and derived debt calculations. Placeholder navigation exists for these modules, but no business totals are fabricated during Phase 1.
+The core financial-management workflow is implemented. Before production deployment,
+run the complete quality commands, `python manage.py check --deploy` with production
+settings, a PostgreSQL/Docker smoke test, and a documented database backup/restore
+rehearsal. Validate dashboard, statement, and report totals against an approved sample
+ledger before importing live shop data.

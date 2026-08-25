@@ -17,3 +17,5 @@ SECURE_REFERRER_POLICY = "same-origin"
 
 if SECRET_KEY.startswith("replace-"):  # noqa: F405
     raise ImproperlyConfigured("DJANGO_SECRET_KEY must be replaced in production.")
+if SIMPLE_JWT["SIGNING_KEY"].startswith("replace-"):  # noqa: F405
+    raise ImproperlyConfigured("JWT_SIGNING_KEY must be replaced in production.")
