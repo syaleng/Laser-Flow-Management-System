@@ -14,6 +14,7 @@ class ExpenseCategory(models.TextChoices):
     TRANSPORTATION = "TRANSPORTATION", "ترانسپورټ"
     MAINTENANCE = "MAINTENANCE", "ساتنه او ترمیم"
     MATERIALS = "MATERIALS", "مواد"
+    DIAMONDS = "DIAMONDS", "د ډایانو اخیستل"
     OTHER = "OTHER", "نور لګښتونه"
 
 
@@ -102,21 +103,11 @@ class DailyClosing(BaseModel):
     customer_payments = models.DecimalField(
         max_digits=14, decimal_places=2, default=Decimal("0.00")
     )
-    other_income = models.DecimalField(
-        max_digits=14, decimal_places=2, default=Decimal("0.00")
-    )
-    loan_returns = models.DecimalField(
-        max_digits=14, decimal_places=2, default=Decimal("0.00")
-    )
-    loan_given = models.DecimalField(
-        max_digits=14, decimal_places=2, default=Decimal("0.00")
-    )
-    payable_payments = models.DecimalField(
-        max_digits=14, decimal_places=2, default=Decimal("0.00")
-    )
-    closing_balance = models.DecimalField(
-        max_digits=14, decimal_places=2, default=Decimal("0.00")
-    )
+    other_income = models.DecimalField(max_digits=14, decimal_places=2, default=Decimal("0.00"))
+    loan_returns = models.DecimalField(max_digits=14, decimal_places=2, default=Decimal("0.00"))
+    loan_given = models.DecimalField(max_digits=14, decimal_places=2, default=Decimal("0.00"))
+    payable_payments = models.DecimalField(max_digits=14, decimal_places=2, default=Decimal("0.00"))
+    closing_balance = models.DecimalField(max_digits=14, decimal_places=2, default=Decimal("0.00"))
     total_income = models.DecimalField(max_digits=14, decimal_places=2, default=Decimal("0.00"))
     total_expenses = models.DecimalField(max_digits=14, decimal_places=2, default=Decimal("0.00"))
     net_profit = models.DecimalField(max_digits=14, decimal_places=2, default=Decimal("0.00"))

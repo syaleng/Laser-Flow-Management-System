@@ -52,6 +52,7 @@ export interface DesignOrder {
   cut_quantity: number;
   unit_price: string;
   total_amount: string;
+  material_quantity: number;
   order_date: string;
   expected_delivery_date: string;
   actual_delivery_date: string | null;
@@ -78,6 +79,7 @@ export interface DesignOrderInput {
   design_description: string;
   cut_quantity: number;
   unit_price: number;
+  material_quantity: number;
   payment_status: PaymentStatus;
   paid_amount: number;
   status: DesignOrderStatus;

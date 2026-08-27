@@ -115,6 +115,7 @@ class DesignOrder(BaseModel):
         validators=[MinValueValidator(Decimal("0.01"))],
     )
     total_amount = models.DecimalField(max_digits=14, decimal_places=2, editable=False)
+    material_quantity = models.PositiveIntegerField(default=1, validators=[MinValueValidator(1)])
     order_date = models.DateField(default=timezone.localdate, db_index=True)
     expected_delivery_date = models.DateField(db_index=True)
     actual_delivery_date = models.DateField(null=True, blank=True, db_index=True)
@@ -186,14 +187,18 @@ class DesignOrder(BaseModel):
 
     def clean(self):
         super().clean()
-        if self.cut_quantity is not None and self.unit_price is not None:
-            self.total_amount = Decimal(self.cut_quantity) * self.unit_price
+        if self.material_quantity is not None and self.unit_price is not None:
+            self.total_amount = Decimal(self.material_quantity) * self.unit_price
 
     def save(self, *args, **kwargs):
-        self.total_amount = Decimal(self.cut_quantity) * self.unit_price
+        self.total_amount = Decimal(self.material_quantity) * self.unit_price
         update_fields = kwargs.get("update_fields")
-        if update_fields is not None and ({"cut_quantity", "unit_price"} & set(update_fields)):
-            kwargs["update_fields"] = [*set(update_fields), "total_amount"]
+        if update_fields is not None:
+            changed_fields = set(update_fields)
+            calculated_fields = []
+            if {"material_quantity", "unit_price"} & changed_fields:
+                calculated_fields.append("total_amount")
+            kwargs["update_fields"] = [*changed_fields, *calculated_fields]
         super().save(*args, **kwargs)
 
     def __str__(self) -> str:

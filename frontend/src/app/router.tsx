@@ -34,6 +34,8 @@ const DesignOrderDetailPage = lazy(() => import("@/features/design-orders/Design
 const DesignOrderEditPage = lazy(() => import("@/features/design-orders/DesignOrderEditPage").then((module) => ({ default: module.DesignOrderEditPage })));
 const PaymentsPage = lazy(() => import("@/features/payments/PaymentsPage").then((module) => ({ default: module.PaymentsPage })));
 const ReportsPage = lazy(() => import("@/features/reports/ReportsPage").then((module) => ({ default: module.ReportsPage })));
+const SuppliersPage = lazy(() => import("@/features/suppliers/SuppliersPage").then((module) => ({ default: module.SuppliersPage })));
+const SupplierDetailPage = lazy(() => import("@/features/suppliers/SupplierDetailPage").then((module) => ({ default: module.SupplierDetailPage })));
 
 function lazyPage(page: ReactNode) {
   return <Suspense fallback={<div className="text-slate-500">پاڼه راځي…</div>}>{page}</Suspense>;
@@ -68,6 +70,10 @@ export const router = createBrowserRouter([
         },
         { element: <PermissionRoute permission="manage_payments" />, children: [{ path: "payments", element: lazyPage(<PaymentsPage />) }] },
         { element: <PermissionRoute permission="manage_expenses" />, children: [{ path: "expenses", element: <DailyJournalPage /> }] },
+        { element: <PermissionRoute permission="manage_expenses" />, children: [
+          { path: "suppliers", element: lazyPage(<SuppliersPage />) },
+          { path: "suppliers/:supplierId", element: lazyPage(<SupplierDetailPage />) },
+        ] },
         { element: <PermissionRoute permission="view_reports" />, children: [{ path: "reports", element: lazyPage(<ReportsPage />) }] },
       ],
     }],

@@ -9,6 +9,7 @@ export interface Customer {
   address: string;
   notes: string;
   is_active: boolean;
+  current_debt: string;
   created_at: string;
   updated_at: string;
 }
@@ -43,6 +44,25 @@ export interface PageMeta {
 export interface CustomerPage {
   data: Customer[];
   meta: PageMeta;
+}
+
+export interface CustomerPaymentInput {
+  amount: number;
+  payment_date?: string;
+  description?: string;
+}
+
+export interface CustomerPaymentResponse {
+  entry_id: string;
+  balance: string;
+}
+
+export interface CustomerDebtor {
+  id: string;
+  full_name: string;
+  phone: string;
+  total_debt: string;
+  last_transaction_date: string | null;
 }
 
 export interface CustomerStatementOrder {

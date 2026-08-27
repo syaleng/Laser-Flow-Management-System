@@ -15,6 +15,7 @@ from apps.daily_journal.models import (
     PayableRepayment,
 )
 from apps.design_orders.models import DesignCategory, DesignOrder, DesignOrderPayment
+from apps.suppliers.models import Supplier, SupplierTransaction
 
 
 @pytest.fixture
@@ -100,6 +101,23 @@ def test_dashboard_calculates_finances_charts_debt_and_activity(client, users):
         payment_date=selected,
         created_by=manager,
     )
+    supplier = Supplier.objects.create(name="New supplier")
+    SupplierTransaction.objects.create(
+        supplier=supplier,
+        transaction_type="DEBIT",
+        amount="500.00",
+        description="Diamonds",
+        transaction_date=selected,
+        created_by=manager,
+    )
+    SupplierTransaction.objects.create(
+        supplier=supplier,
+        transaction_type="CREDIT",
+        amount="200.00",
+        description="Supplier payment",
+        transaction_date=selected,
+        created_by=manager,
+    )
 
     client.force_authenticate(manager)
     response = client.get(
@@ -112,14 +130,17 @@ def test_dashboard_calculates_finances_charts_debt_and_activity(client, users):
     assert data["cards"] == {
         "orders": 1,
         "received_payments": "400.00",
+        "sales": "1000.00",
         "expenses": "125.00",
-        "profit_loss": "275.00",
+        "supplier_payments": "200.00",
+        "profit_loss": "875.00",
+        "cash_balance": "-275.00",
         "customer_receivables": "600.00",
-        "shop_payables": "400.00",
-        "net_financial_position": "450.00",
+        "shop_payables": "700.00",
+        "net_financial_position": "150.00",
     }
     assert data["debt"]["loan_receivables"] == "250.00"
-    assert data["charts"]["income_expense_profit"][0]["profit"] == "275.00"
+    assert data["charts"]["income_expense_profit"][0]["profit"] == "875.00"
     assert data["charts"]["expense_categories"][0]["category"] == "MATERIALS"
     assert data["charts"]["expense_categories"][0]["label"] == "مواد"
     assert {item["type"] for item in data["recent_activity"]} == {
@@ -128,6 +149,7 @@ def test_dashboard_calculates_finances_charts_debt_and_activity(client, users):
         "expense",
         "loan_repayment",
         "payable_repayment",
+        "supplier_payment",
     }
     assert all(item["user"] == manager.full_name for item in data["recent_activity"])
 
@@ -138,6 +160,8 @@ def test_dashboard_custom_date_filter_excludes_outside_transactions(client, user
     selected = date(2026, 7, 10)
     inside = create_order(manager, selected)
     outside = create_order(manager, selected - timedelta(days=1))
+    outside.status = "CANCELLED"
+    outside.save(update_fields=["status"])
     for order, payment_date in ((inside, selected), (outside, selected - timedelta(days=1))):
         DesignOrderPayment.objects.create(
             design_order=order,
@@ -155,6 +179,7 @@ def test_dashboard_custom_date_filter_excludes_outside_transactions(client, user
     assert response.status_code == 200
     assert response.data["data"]["cards"]["orders"] == 1
     assert response.data["data"]["cards"]["received_payments"] == "100.00"
+    assert response.data["data"]["cards"]["cash_balance"] == "100.00"
     assert len(response.data["data"]["charts"]["order_trend"]) == 1
 
 

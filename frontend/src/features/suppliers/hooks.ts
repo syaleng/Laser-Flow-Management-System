@@ -1,0 +1,25 @@
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { createSupplier, createSupplierTransaction, getSupplier, getSupplierTransactions, getSuppliers } from "./api";
+
+export const supplierKeys = {
+  all: ["suppliers"] as const,
+  list: ["suppliers", "list"] as const,
+  detail: (id: string) => ["suppliers", "detail", id] as const,
+  transactions: (id: string) => ["suppliers", "transactions", id] as const,
+};
+
+export const useSuppliers = () => useQuery({ queryKey: supplierKeys.list, queryFn: getSuppliers });
+export const useSupplier = (id: string) => useQuery({ queryKey: supplierKeys.detail(id), queryFn: () => getSupplier(id), enabled: Boolean(id) });
+export const useSupplierTransactions = (id: string) => useQuery({ queryKey: supplierKeys.transactions(id), queryFn: () => getSupplierTransactions(id), enabled: Boolean(id) });
+
+export function useSupplierMutations() {
+  const client = useQueryClient();
+  const invalidate = () => void client.invalidateQueries({ queryKey: supplierKeys.all });
+  return {
+    create: useMutation({ mutationFn: createSupplier, onSuccess: invalidate }),
+    transaction: useMutation({
+      mutationFn: ({ id, type, ...input }: { id: string; type: "debit" | "credit"; amount: number; transaction_date: string; description: string }) => createSupplierTransaction(id, type, input),
+      onSuccess: invalidate,
+    }),
+  };
+}

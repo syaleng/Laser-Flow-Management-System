@@ -70,9 +70,9 @@ export function DailyJournalPage() {
 
       <div className="mt-6 grid gap-6 xl:grid-cols-3">
         <JournalForm title="نوی ورځنی لګښت" icon={ReceiptText} onSubmit={submitExpense} submitting={journal.addExpense.isPending}>
-          <label className="text-sm font-semibold text-slate-700">د لګښت ډول<select className={inputClass} value={expenseForm.category} onChange={(event) => setExpenseForm({ ...expenseForm, category: event.target.value })}><option value="ELECTRICITY_WATER">برېښنا او اوبه</option><option value="RENT">کرایه</option><option value="FOOD_STAFF">خوراک او د کارکوونکو ورځني لګښتونه</option><option value="TRANSPORTATION">ترانسپورټ</option><option value="MAINTENANCE">ساتنه او ترمیم</option><option value="MATERIALS">مواد</option><option value="OTHER">نور لګښتونه</option></select></label>
+          <label className="text-sm font-semibold text-slate-700">د لګښت ډول<select className={inputClass} value={expenseForm.category} onChange={(event) => setExpenseForm({ ...expenseForm, category: event.target.value })}><option value="ELECTRICITY_WATER">برېښنا او اوبه</option><option value="RENT">کرایه</option><option value="FOOD_STAFF">خوراک او د کارکوونکو ورځني لګښتونه</option><option value="TRANSPORTATION">ترانسپورټ</option><option value="MAINTENANCE">ساتنه او ترمیم</option><option value="MATERIALS">مواد</option><option value="DIAMONDS">د ډایانو اخیستل</option><option value="OTHER">نور لګښتونه</option></select></label>
           <label className="text-sm font-semibold text-slate-700">مقدار (AFN)<input required min="0.01" step="0.01" type="number" className={inputClass} value={expenseForm.amount} onChange={(event) => setExpenseForm({ ...expenseForm, amount: event.target.value })} /></label>
-          <label className="text-sm font-semibold text-slate-700">یادښت<textarea className={inputClass} value={expenseForm.note} onChange={(event) => setExpenseForm({ ...expenseForm, note: event.target.value })} /></label>
+          <label className="text-sm font-semibold text-slate-700">تشریح<textarea className={inputClass} value={expenseForm.note} onChange={(event) => setExpenseForm({ ...expenseForm, note: event.target.value })} /></label>
         </JournalForm>
         <JournalForm title="د ترلاسه کېدونکو پورونو حساب" description="هغه پیسې چې موږ نورو کسانو ته ورکړي او باید بېرته ترلاسه یې کړو." icon={HandCoins} onSubmit={submitLoan} submitting={journal.addLoan.isPending}>
           <label className="text-sm font-semibold text-slate-700">د شخص نوم<input required className={inputClass} value={loanForm.person_name} onChange={(event) => setLoanForm({ ...loanForm, person_name: event.target.value })} /></label>
@@ -97,7 +97,7 @@ export function DailyJournalPage() {
       </div>
 
       <div className="mt-6 grid gap-6 xl:grid-cols-2">
-        <RecordTable title="د نن ورځې لګښتونه" rows={journal.expenses.data?.map((item) => [item.category_label, money(item.amount), item.note || "—"]) ?? []} headers={["ډول", "مقدار", "یادښت"]} />
+        <RecordTable title="د نن ورځې لګښتونه" rows={journal.expenses.data?.map((item) => [item.category_label, money(item.amount), item.note || "—"]) ?? []} headers={["ډول", "مقدار", "تشریح"]} />
         <DebtRecordTable title="د ترلاسه کېدونکو پورونو حساب" records={journal.loans.data ?? []} paidKey="returned_amount" onRepay={(input) => journal.repayLoan.mutateAsync(input)} pending={journal.repayLoan.isPending} />
         <DebtRecordTable title="د ورکولو وړ پورونو حساب" records={journal.payables.data ?? []} paidKey="paid_amount" onRepay={(input) => journal.repayPayable.mutateAsync(input)} pending={journal.repayPayable.isPending} />
       </div>

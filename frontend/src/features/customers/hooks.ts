@@ -2,15 +2,17 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import {
   archiveCustomer,
+  createCustomerPayment,
   createCustomer,
   getCustomer,
   getCustomerLedger,
   getCustomerStatement,
   getCustomers,
+  getCustomersWithDebt,
   restoreCustomer,
   updateCustomer,
 } from "./api";
-import type { CustomerInput, CustomerListParams } from "./types";
+import type { CustomerInput, CustomerListParams, CustomerPaymentInput } from "./types";
 
 export const customerKeys = {
   all: ["customers"] as const,
@@ -18,6 +20,7 @@ export const customerKeys = {
   list: (params: CustomerListParams) => [...customerKeys.lists(), params] as const,
   details: () => [...customerKeys.all, "detail"] as const,
   detail: (id: string) => [...customerKeys.details(), id] as const,
+  withDebt: ["customers", "with-debt"] as const,
 };
 
 export function useCustomers(params: CustomerListParams) {
@@ -49,6 +52,22 @@ export function useCustomerLedger(customerId: string) {
     queryFn: () => getCustomerLedger(customerId),
     enabled: Boolean(customerId),
   });
+}
+
+export function useCreateCustomerPayment(customerId: string) {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: (input: CustomerPaymentInput) => createCustomerPayment(customerId, input),
+    onSuccess: () => {
+      void client.invalidateQueries({ queryKey: customerKeys.detail(customerId) });
+      void client.invalidateQueries({ queryKey: customerKeys.lists() });
+      void client.invalidateQueries({ queryKey: customerKeys.withDebt });
+    },
+  });
+}
+
+export function useCustomersWithDebt() {
+  return useQuery({ queryKey: customerKeys.withDebt, queryFn: getCustomersWithDebt });
 }
 
 export function useCreateCustomer() {

@@ -1,8 +1,11 @@
+from decimal import Decimal
+
 import pytest
 from django.urls import reverse
 from rest_framework.test import APIClient
 
 from apps.accounts.models import User, UserRole
+from apps.accounting.models import CustomerLedgerEntry, EntryType
 from apps.customers.models import Customer
 
 
@@ -109,6 +112,59 @@ def test_customer_list_supports_search_and_pagination(client, owner, customer):
     assert response.status_code == 200
     assert response.data["meta"]["count"] == 1
     assert response.data["data"][0]["id"] == str(customer.id)
+
+
+@pytest.mark.django_db
+def test_customer_list_includes_ledger_derived_current_debt(client, owner, customer):
+    CustomerLedgerEntry.objects.create(
+        customer=customer,
+        entry_type=EntryType.DEBIT,
+        amount=Decimal("5000.00"),
+        created_by=owner,
+    )
+    CustomerLedgerEntry.objects.create(
+        customer=customer,
+        entry_type=EntryType.CREDIT,
+        amount=Decimal("2000.00"),
+        created_by=owner,
+    )
+    client.force_authenticate(owner)
+
+    response = client.get(reverse("customer-list"))
+
+    assert response.status_code == 200
+    assert Decimal(response.data["data"][0]["current_debt"]) == Decimal("3000.00")
+
+
+@pytest.mark.django_db
+def test_customer_payment_creates_credit_and_updates_balance(client, owner, customer):
+    CustomerLedgerEntry.objects.create(
+        customer=customer, entry_type=EntryType.DEBIT, amount=Decimal("1200.00"), created_by=owner
+    )
+    client.force_authenticate(owner)
+
+    response = client.post(
+        reverse("customer-payments", kwargs={"pk": customer.pk}),
+        {"amount": "600.00", "payment_date": "2026-08-25", "description": "Cash payment"},
+    )
+
+    assert response.status_code == 201
+    entry = CustomerLedgerEntry.objects.get(customer=customer, entry_type=EntryType.CREDIT)
+    assert entry.amount == Decimal("600.00")
+    assert entry.description == "Cash payment"
+    assert Decimal(response.data["data"]["balance"]) == Decimal("600.00")
+
+
+@pytest.mark.django_db
+def test_customer_payment_rejects_non_positive_amount(client, owner, customer):
+    client.force_authenticate(owner)
+
+    response = client.post(
+        reverse("customer-payments", kwargs={"pk": customer.pk}), {"amount": "0"}
+    )
+
+    assert response.status_code == 400
+    assert not CustomerLedgerEntry.objects.filter(customer=customer).exists()
 
 
 @pytest.mark.django_db

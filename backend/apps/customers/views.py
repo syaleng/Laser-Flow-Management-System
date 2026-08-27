@@ -1,6 +1,8 @@
+from datetime import datetime, time
 from decimal import Decimal
 
 from drf_spectacular.utils import extend_schema
+from django.utils import timezone
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
@@ -8,11 +10,11 @@ from rest_framework.response import Response
 from apps.accounts.authorization import Capability
 from apps.accounts.permissions import HasRequiredCapability
 from apps.accounting.models import CustomerLedgerEntry, EntryType
-from apps.accounting.services import get_customer_balance, get_customer_ledger
+from apps.accounting.services import create_ledger_entry, get_customer_balance, get_customer_ledger
 
 from . import selectors, services
 from .financial_services import get_customer_statement
-from .serializers import CustomerSerializer
+from .serializers import CustomerPaymentSerializer, CustomerSerializer
 from .statement_serializers import CustomerLedgerSerializer, CustomerStatementSerializer
 
 
@@ -48,7 +50,10 @@ class CustomerViewSet(viewsets.ModelViewSet):
     @action(detail=True, methods=["get"], url_path="ledger")
     def ledger(self, request, pk=None):
         customer = self.get_object()
-        entries = list(get_customer_ledger(customer=customer))
+        entries = sorted(
+            get_customer_ledger(customer=customer),
+            key=lambda entry: (entry.posted_at, str(entry.id)),
+        )
         running_balance = Decimal("0.00")
         serialized_entries = []
         for entry in entries:
@@ -88,6 +93,61 @@ class CustomerViewSet(viewsets.ModelViewSet):
             "entries": serialized_entries,
         }
         return Response({"data": ledger_payload})
+
+    @extend_schema(request=CustomerPaymentSerializer)
+    @action(detail=True, methods=["post"], url_path="payments")
+    def payments(self, request, pk=None):
+        customer = self.get_object()
+        serializer = CustomerPaymentSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        payment_date = serializer.validated_data.get("payment_date")
+        posted_at = (
+            timezone.make_aware(datetime.combine(payment_date, time.min))
+            if payment_date
+            else None
+        )
+        entry = create_ledger_entry(
+            customer=customer,
+            entry_type=EntryType.CREDIT,
+            amount=serializer.validated_data["amount"],
+            description=serializer.validated_data.get("description", "Payment received"),
+            source_type="customer_payment",
+            created_by=request.user,
+            posted_at=posted_at,
+        )
+        return Response(
+            {
+                "data": {
+                    "entry_id": str(entry.id),
+                    "balance": str(get_customer_balance(customer=customer)),
+                }
+            },
+            status=status.HTTP_201_CREATED,
+        )
+
+    @extend_schema(responses={200: CustomerSerializer(many=True)})
+    @action(detail=False, methods=["get"], url_path="with-debt")
+    def with_debt(self, request):
+        debtors = []
+        for customer in self.get_queryset():
+            balance = get_customer_balance(customer=customer)
+            if balance > 0:
+                entries = get_customer_ledger(customer=customer)
+                last_transaction = max(
+                    (entry.posted_at for entry in entries), default=None
+                )
+                debtors.append(
+                    {
+                        "id": str(customer.id),
+                        "full_name": customer.full_name,
+                        "phone": customer.phone,
+                        "total_debt": str(balance),
+                        "last_transaction_date": (
+                            last_transaction.date().isoformat() if last_transaction else None
+                        ),
+                    }
+                )
+        return Response({"data": debtors})
 
     def partial_update(self, request, *args, **kwargs):
         customer = self.get_object()

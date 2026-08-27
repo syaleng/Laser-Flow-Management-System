@@ -17,6 +17,7 @@ urlpatterns = [
     path("api/v1/design-categories/", include("apps.design_orders.category_urls")),
     path("api/v1/journal/", include("apps.daily_journal.urls")),
     path("api/v1/payments/", PaymentListView.as_view(), name="payments"),
+    path("api/v1/suppliers/", include("apps.suppliers.urls")),
     path("api/v1/reports/", include("apps.reports.urls")),
     path("api/v1/schema/", SpectacularAPIView.as_view(), name="api-schema"),
     path(

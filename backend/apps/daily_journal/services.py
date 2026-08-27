@@ -6,6 +6,7 @@ from django.db import transaction
 from django.db.models import Sum
 
 from apps.design_orders.models import DesignOrder, DesignOrderPayment, DesignOrderStatus
+from apps.suppliers.models import SupplierTransaction
 
 from .models import (
     Expense,
@@ -38,13 +39,21 @@ def _cash_components(start, end):
     loans = _dated(MoneyLoan.objects.all(), "loan_date", start, end)
     loan_returns = _dated(MoneyLoanRepayment.objects.all(), "payment_date", start, end)
     payable_payments = _dated(PayableRepayment.objects.all(), "payment_date", start, end)
+    supplier_payments = _dated(
+        SupplierTransaction.objects.filter(
+            transaction_type=SupplierTransaction.TransactionType.CREDIT
+        ),
+        "transaction_date",
+        start,
+        end,
+    )
     return {
         "customer_payments": _total(payments),
         "expenses": _total(expenses),
         "loan_given": _total(loans),
         "loan_returns": _total(loan_returns),
         "other_income": ZERO,
-        "payable_payments": _total(payable_payments),
+        "payable_payments": _total(payable_payments) + _total(supplier_payments),
     }
 
 
@@ -106,10 +115,10 @@ def build_transactions(start, end):
             }
         )
 
-    for item in DesignOrderPayment.objects.filter(
-        payment_date__range=(start, end)
-    ).exclude(design_order__status=DesignOrderStatus.CANCELLED).select_related(
-        "recorded_by", "design_order__customer"
+    for item in (
+        DesignOrderPayment.objects.filter(payment_date__range=(start, end))
+        .exclude(design_order__status=DesignOrderStatus.CANCELLED)
+        .select_related("recorded_by", "design_order__customer")
     ):
         add(
             "customer_payment",
@@ -124,36 +133,74 @@ def build_transactions(start, end):
     expenses = Expense.objects.filter(expense_date__range=(start, end)).select_related("created_by")
     for item in expenses:
         add(
-            "expense", "out", item.amount, item.expense_date, item.created_at,
-            item.created_by, item.get_category_display()
+            "expense",
+            "out",
+            item.amount,
+            item.expense_date,
+            item.created_at,
+            item.created_by,
+            item.get_category_display(),
         )
     loans = MoneyLoan.objects.filter(loan_date__range=(start, end)).select_related("created_by")
     for item in loans:
         add(
-            "loan_given", "out", item.amount, item.loan_date, item.created_at,
-            item.created_by, item.person_name
+            "loan_given",
+            "out",
+            item.amount,
+            item.loan_date,
+            item.created_at,
+            item.created_by,
+            item.person_name,
         )
-    for item in MoneyLoanRepayment.objects.filter(
-        payment_date__range=(start, end)
-    ).select_related("created_by", "money_loan"):
+    for item in MoneyLoanRepayment.objects.filter(payment_date__range=(start, end)).select_related(
+        "created_by", "money_loan"
+    ):
         add(
-            "loan_repayment", "in", item.amount, item.payment_date, item.created_at,
-            item.created_by, item.money_loan.person_name
+            "loan_repayment",
+            "in",
+            item.amount,
+            item.payment_date,
+            item.created_at,
+            item.created_by,
+            item.money_loan.person_name,
         )
-    payables = PayableAccount.objects.filter(
-        payable_date__range=(start, end)
-    ).select_related("created_by")
+    payables = PayableAccount.objects.filter(payable_date__range=(start, end)).select_related(
+        "created_by"
+    )
     for item in payables:
         add(
-            "payable_created", "non_cash", item.amount, item.payable_date, item.created_at,
-            item.created_by, item.person_name
+            "payable_created",
+            "non_cash",
+            item.amount,
+            item.payable_date,
+            item.created_at,
+            item.created_by,
+            item.person_name,
         )
-    for item in PayableRepayment.objects.filter(
-        payment_date__range=(start, end)
-    ).select_related("created_by", "payable_account"):
+    for item in PayableRepayment.objects.filter(payment_date__range=(start, end)).select_related(
+        "created_by", "payable_account"
+    ):
         add(
-            "payable_payment", "out", item.amount, item.payment_date, item.created_at,
-            item.created_by, item.payable_account.person_name
+            "payable_payment",
+            "out",
+            item.amount,
+            item.payment_date,
+            item.created_at,
+            item.created_by,
+            item.payable_account.person_name,
+        )
+    for item in SupplierTransaction.objects.filter(
+        transaction_date__range=(start, end),
+        transaction_type=SupplierTransaction.TransactionType.CREDIT,
+    ).select_related("created_by", "supplier"):
+        add(
+            "supplier_payment",
+            "out",
+            item.amount,
+            item.transaction_date,
+            item.created_at,
+            item.created_by,
+            item.supplier.name,
         )
     return sorted(transactions, key=lambda item: (item["date"], item["time"]), reverse=True)
 

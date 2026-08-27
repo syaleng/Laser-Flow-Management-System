@@ -121,6 +121,7 @@ class DesignOrderSerializer(serializers.ModelSerializer):
             "cut_quantity",
             "unit_price",
             "total_amount",
+            "material_quantity",
             "order_date",
             "expected_delivery_date",
             "actual_delivery_date",
@@ -162,6 +163,7 @@ class DesignOrderListSerializer(serializers.ModelSerializer):
             "cut_quantity",
             "unit_price",
             "total_amount",
+            "material_quantity",
             "order_date",
             "expected_delivery_date",
             "actual_delivery_date",
@@ -197,6 +199,7 @@ class DesignOrderWriteSerializer(serializers.ModelSerializer):
             "design_description",
             "cut_quantity",
             "unit_price",
+            "material_quantity",
             "payment_status",
             "paid_amount",
             "status",
@@ -226,10 +229,12 @@ class DesignOrderWriteSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError(
                 {"expected_delivery_date": "Delivery cannot be before the order date."}
             )
-        quantity = attrs.get("cut_quantity", self.instance.cut_quantity if self.instance else 0)
         unit_price = attrs.get("unit_price", self.instance.unit_price if self.instance else 0)
+        material_quantity = attrs.get(
+            "material_quantity", self.instance.material_quantity if self.instance else 0
+        )
         paid_amount = attrs.get("paid_amount", self.instance.paid_amount if self.instance else 0)
-        total_amount = quantity * unit_price
+        total_amount = material_quantity * unit_price
         if paid_amount > total_amount:
             raise serializers.ValidationError(
                 {"paid_amount": "Paid amount cannot exceed the total amount."}

@@ -23,7 +23,6 @@ from .models import (
     JournalActivity,
     LoanStatus,
     MoneyLoan,
-    MoneyLoanRepayment,
     PayableAccount,
     PayableRepayment,
 )
@@ -264,12 +263,6 @@ def journal_summary(request):
     expenses = Expense.objects.filter(expense_date=selected_date).aggregate(total=Sum("amount"))[
         "total"
     ] or Decimal("0")
-    loans = MoneyLoan.objects.filter(loan_date=selected_date).aggregate(total=Sum("amount"))[
-        "total"
-    ] or Decimal("0")
-    loan_returns = MoneyLoanRepayment.objects.filter(payment_date=selected_date).aggregate(
-        total=Sum("amount")
-    )["total"] or Decimal("0")
     payable_income = PayableAccount.objects.filter(payable_date=selected_date).aggregate(
         total=Sum("amount")
     )["total"] or Decimal("0")
@@ -348,12 +341,7 @@ def journal_summary(request):
                 "total_receivables": receivables,
                 "total_payables": payables,
                 "net_financial_position": receivables - payables,
-                "cash_balance": income
-                - expenses
-                - loans
-                + loan_returns
-                + payable_income
-                - payable_returns,
+                "cash_balance": finances["closing_balance"],
                 "net_profit": finances["net_profit"],
                 "opening_balance": finances["opening_balance"],
                 "customer_payments": finances["customer_payments"],
@@ -454,9 +442,6 @@ def journal_report(request):
     loans = MoneyLoan.objects.filter(loan_date__range=(start, end)).aggregate(total=Sum("amount"))[
         "total"
     ] or Decimal("0")
-    loan_returns = MoneyLoanRepayment.objects.filter(payment_date__range=(start, end)).aggregate(
-        total=Sum("amount")
-    )["total"] or Decimal("0")
     payable_income = PayableAccount.objects.filter(payable_date__range=(start, end)).aggregate(
         total=Sum("amount")
     )["total"] or Decimal("0")
@@ -476,12 +461,7 @@ def journal_report(request):
                 "payable_income": payable_income,
                 "payable_returns": payable_returns,
                 "net_profit": finances["net_profit"],
-                "cash_balance": income
-                - expenses
-                - loans
-                + loan_returns
-                + payable_income
-                - payable_returns,
+                "cash_balance": finances["closing_balance"],
                 "opening_balance": finances["opening_balance"],
                 "customer_payments": finances["customer_payments"],
                 "other_income": finances["other_income"],

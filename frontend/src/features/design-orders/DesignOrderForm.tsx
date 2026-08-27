@@ -21,10 +21,10 @@ export function DesignOrderForm({ defaultValues, submitLabel, cancelTo, serverEr
     mode: "onBlur",
     reValidateMode: "onChange",
   });
-  const quantity = watch("cut_quantity");
   const price = watch("unit_price");
+  const materialQuantity = watch("material_quantity");
   const paidAmount = watch("paid_amount");
-  const total = (Number(quantity) || 0) * (Number(price) || 0);
+  const total = (Number(materialQuantity) || 0) * (Number(price) || 0);
   const remaining = Math.max(0, total - (Number(paidAmount) || 0));
   const calculatedPaymentStatus = calculatePaymentStatus(total, Number(paidAmount) || 0);
 
@@ -51,9 +51,9 @@ export function DesignOrderForm({ defaultValues, submitLabel, cancelTo, serverEr
       <label className="text-sm font-semibold text-slate-700 md:col-span-2 lg:col-span-4">د ډیزاین تشریح<textarea rows={3} className={inputClass} {...register("design_description")} /><FieldError message={errors.design_description?.message} /></label>
     </div></section>
 
-    <section className="rounded-2xl bg-slate-50 p-5"><h2 className="text-lg font-semibold text-slate-950"><span className="ml-2 inline-grid size-7 place-items-center rounded-full bg-brand-600 text-sm text-white">۳</span>شمېر او بیه</h2><p className="mt-1 text-sm text-slate-500">سیستم ټول مقدار په اتومات ډول حسابوي.</p><div className="mt-4 grid gap-5 md:grid-cols-2 lg:grid-cols-4">
-      <label className="text-sm font-semibold text-slate-700">شمېر <span className="text-red-500">*</span><input type="number" min="1" className={inputClass} {...register("cut_quantity", { valueAsNumber: true })} /><FieldError message={errors.cut_quantity?.message} /></label>
-      <label className="text-sm font-semibold text-slate-700">بیه (AFN) <span className="text-red-500">*</span><input type="number" min="0.01" step="0.01" className={inputClass} {...register("unit_price", { valueAsNumber: true })} /><FieldError message={errors.unit_price?.message} /></label>
+    <section className="rounded-2xl bg-slate-50 p-5"><h2 className="text-lg font-semibold text-slate-950"><span className="ml-2 inline-grid size-7 place-items-center rounded-full bg-brand-600 text-sm text-white">۳</span>د ډایانو شمېر او د پلور بیه</h2><p className="mt-1 text-sm text-slate-500">د ډایانو شمېر او د یوه ډای د پلور بیه ولیکئ؛ ټول مقدار په خپله حسابېږي.</p><div className="mt-4 grid gap-5 md:grid-cols-2 lg:grid-cols-4">
+      <label className="text-sm font-semibold text-slate-700">د ډایانو شمېر <span className="text-red-500">*</span><input type="number" min="1" className={inputClass} {...register("material_quantity", { valueAsNumber: true })} /><FieldError message={errors.material_quantity?.message} /></label>
+      <label className="text-sm font-semibold text-slate-700">د یوه ډای د پلور بیه (AFN) <span className="text-red-500">*</span><input type="number" min="0.01" step="0.01" className={inputClass} {...register("unit_price", { valueAsNumber: true })} /><FieldError message={errors.unit_price?.message} /></label>
       <label className="text-sm font-semibold text-slate-700">د فرمایش حالت<select className={`${inputClass} pointer-events-none bg-slate-50 text-slate-600`} {...register("status")} aria-disabled="true" tabIndex={-1}><option value="NEW">نوی فرمایش</option><option value="DESIGN_PREPARATION">کار روان دی</option><option value="CUTTING">پرې کول روان دي</option><option value="READY_FOR_DELIVERY">بشپړ شوی</option><option value="DELIVERED">مشتري ته سپارل شوی</option><option value="CANCELLED">لغوه شوی</option></select><span className="mt-1 block text-xs font-normal text-slate-500">حالت د فرمایش له پاڼې څخه بدلېږي.</span></label>
     </div></section>
 

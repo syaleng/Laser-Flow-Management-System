@@ -7,6 +7,7 @@ from django.utils import timezone
 from rest_framework import serializers
 
 from apps.design_orders.models import DesignOrder, DesignOrderPayment, DesignOrderStatus
+from apps.suppliers.models import SupplierTransaction
 
 from .models import Expense, MoneyLoan, MoneyLoanRepayment, PayableAccount, PayableRepayment
 
@@ -116,7 +117,7 @@ def _loan_receivables(end):
 
 def _shop_payables(end):
     payables = PayableAccount.objects.filter(payable_date__lte=end).prefetch_related("repayments")
-    return sum(
+    legacy_total = sum(
         (
             payable.amount
             - sum((r.amount for r in payable.repayments.all() if r.payment_date <= end), ZERO)
@@ -124,6 +125,19 @@ def _shop_payables(end):
         ),
         ZERO,
     )
+    supplier_debits = _sum(
+        SupplierTransaction.objects.filter(
+            transaction_date__lte=end,
+            transaction_type=SupplierTransaction.TransactionType.DEBIT,
+        )
+    )
+    supplier_credits = _sum(
+        SupplierTransaction.objects.filter(
+            transaction_date__lte=end,
+            transaction_type=SupplierTransaction.TransactionType.CREDIT,
+        )
+    )
+    return legacy_total + supplier_debits - supplier_credits
 
 
 def _activities(start, end):
@@ -185,6 +199,19 @@ def _activities(start, end):
             repayment.created_at,
             repayment.created_by,
         )
+    supplier_payments = SupplierTransaction.objects.filter(
+        transaction_date__range=(start, end),
+        transaction_type=SupplierTransaction.TransactionType.CREDIT,
+    ).select_related("created_by", "supplier")
+    for payment in supplier_payments:
+        add(
+            "supplier_payment",
+            "Supplier payment",
+            f"{payment.amount} AFN · {payment.supplier.name}",
+            payment.transaction_date,
+            payment.created_at,
+            payment.created_by,
+        )
     repayments = PayableRepayment.objects.filter(payment_date__range=(start, end)).select_related(
         "created_by", "payable_account"
     )
@@ -208,12 +235,37 @@ def build_dashboard(*, start, end, period):
         design_order__status=DesignOrderStatus.CANCELLED
     )
     expenses = Expense.objects.filter(expense_date__range=(start, end))
+    sales = _sum(orders, "total_amount")
     income, expense_total = _sum(payments), _sum(expenses)
+    supplier_payments = _sum(
+        SupplierTransaction.objects.filter(
+            transaction_date__range=(start, end),
+            transaction_type=SupplierTransaction.TransactionType.CREDIT,
+        )
+    )
+    cash_balance = (
+        _sum(
+            DesignOrderPayment.objects.filter(payment_date__lte=end).exclude(
+                design_order__status=DesignOrderStatus.CANCELLED
+            )
+        )
+        - _sum(Expense.objects.filter(expense_date__lte=end))
+        - _sum(MoneyLoan.objects.filter(loan_date__lte=end))
+        + _sum(MoneyLoanRepayment.objects.filter(payment_date__lte=end))
+        - _sum(PayableRepayment.objects.filter(payment_date__lte=end))
+        - _sum(
+            SupplierTransaction.objects.filter(
+                transaction_date__lte=end,
+                transaction_type=SupplierTransaction.TransactionType.CREDIT,
+            )
+        )
+    )
     customer_debt = _outstanding_customer_debt(end)
     loan_receivables = _loan_receivables(end)
     shop_payables = _shop_payables(end)
 
     payment_series = _series(payments, "payment_date", start, end, value_field="amount")
+    sales_series = _series(orders, "order_date", start, end, value_field="total_amount")
     expense_series = _series(expenses, "expense_date", start, end, value_field="amount")
     order_series = _series(orders, "order_date", start, end)
     combined = [
@@ -221,9 +273,9 @@ def build_dashboard(*, start, end, period):
             "date": payment["date"],
             "income": _money(payment["value"]),
             "expenses": _money(expense["value"]),
-            "profit": _money(payment["value"] - expense["value"]),
+            "profit": _money(sale["value"] - expense["value"]),
         }
-        for payment, expense in zip(payment_series, expense_series, strict=True)
+        for payment, sale, expense in zip(payment_series, sales_series, expense_series, strict=True)
     ]
     categories = expenses.values("category").annotate(total=Sum("amount")).order_by("category")
     category_labels = dict(Expense._meta.get_field("category").choices)
@@ -234,8 +286,11 @@ def build_dashboard(*, start, end, period):
         "cards": {
             "orders": orders.count(),
             "received_payments": _money(income),
+            "sales": _money(sales),
             "expenses": _money(expense_total),
-            "profit_loss": _money(income - expense_total),
+            "supplier_payments": _money(supplier_payments),
+            "profit_loss": _money(sales - expense_total),
+            "cash_balance": _money(cash_balance),
             "customer_receivables": _money(customer_debt),
             "shop_payables": _money(shop_payables),
             "net_financial_position": _money(customer_debt + loan_receivables - shop_payables),

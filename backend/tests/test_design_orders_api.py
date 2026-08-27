@@ -73,7 +73,8 @@ def order_payload(customer, category):
         "design_name": "Flower Border Design",
         "design_description": "Decorative flower border for a shirt.",
         "cut_quantity": 25,
-        "unit_price": "40.00",
+        "unit_price": "100.00",
+        "material_quantity": 10,
         "paid_amount": "400.00",
         "payment_status": "PARTIAL",
         "design_type": "JAR",
@@ -95,6 +96,7 @@ def test_operator_can_create_design_order(client, operator, customer, category):
     assert response.status_code == 201
     assert response.data["data"]["order_number"].startswith("ORD-")
     assert Decimal(response.data["data"]["total_amount"]) == Decimal("1000.00")
+    assert response.data["data"]["material_quantity"] == 10
     assert Decimal(response.data["data"]["paid_amount"]) == Decimal("400.00")
     assert Decimal(response.data["data"]["remaining_amount"]) == Decimal("600.00")
     assert response.data["data"]["customer"]["id"] == str(customer.id)
@@ -112,7 +114,7 @@ def test_fully_paid_order_rejects_credit_status(client, operator, customer, cate
     payload.update(
         {
             "cut_quantity": 3,
-            "unit_price": "40.00",
+            "unit_price": "12.00",
             "paid_amount": "120.00",
             "payment_status": "CREDIT",
         }
@@ -133,7 +135,7 @@ def test_fully_paid_order_accepts_fully_paid_status(client, operator, customer, 
     payload.update(
         {
             "cut_quantity": 3,
-            "unit_price": "40.00",
+            "unit_price": "12.00",
             "paid_amount": "120.00",
             "payment_status": "FULLY_PAID",
         }
@@ -153,7 +155,7 @@ def test_order_update_recalculates_total(client, operator, customer, category):
 
     response = client.patch(
         reverse("design-order-detail", kwargs={"pk": order_id}),
-        {"cut_quantity": 10, "unit_price": "75.50"},
+        {"material_quantity": 10, "unit_price": "75.50"},
     )
 
     assert response.status_code == 200

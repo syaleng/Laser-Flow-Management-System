@@ -234,8 +234,8 @@ def test_realistic_ledger_reconciles_payments_statements_journal_dashboard_and_r
     assert Decimal(dashboard["cards"]["expenses"]) == Decimal("1500.00")
     assert Decimal(report["summary"]["expenses"]) == Decimal("1500.00")
     assert Decimal(journal["net_profit"]) == Decimal("3000.00")
-    assert Decimal(dashboard["cards"]["profit_loss"]) == Decimal("300.00")
-    assert Decimal(report["summary"]["profit_loss"]) == Decimal("300.00")
+    assert Decimal(dashboard["cards"]["profit_loss"]) == Decimal("3000.00")
+    assert Decimal(report["summary"]["profit_loss"]) == Decimal("3000.00")
     assert Decimal(journal["customer_debts"]) == Decimal("2700.00")
     assert Decimal(dashboard["cards"]["customer_receivables"]) == Decimal("2700.00")
     assert Decimal(report["summary"]["customer_receivables"]) == Decimal("2700.00")
@@ -246,8 +246,8 @@ def test_realistic_ledger_reconciles_payments_statements_journal_dashboard_and_r
     assert Decimal(dashboard["cards"]["shop_payables"]) == Decimal("1550.00")
     assert Decimal(report["summary"]["shop_payables"]) == Decimal("1550.00")
     assert Decimal(journal["cash_balance"]) == Decimal(journal_report["cash_balance"])
-    assert Decimal(report["summary"]["cash_movement"]) == Decimal("1250.00")
-    assert Decimal(journal["cash_balance"]) == Decimal("1250.00")
+    assert Decimal(report["summary"]["cash_movement"]) == Decimal("-1150.00")
+    assert Decimal(journal["cash_balance"]) == Decimal("-1150.00")
 
 
 @pytest.mark.django_db

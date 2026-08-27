@@ -11,7 +11,7 @@ import { ReportsPage } from "@/features/reports/ReportsPage";
 const data: ReportData = {
   filter_options: { customers: [{ id: "customer-1", customer_code: "CUS-1", full_name: "احمد" }] },
   filters: { period: "monthly", start_date: "2026-08-01", end_date: "2026-08-23" },
-  summary: { total_orders: 2, total_sales: "2000.00", received_payments: "1200.00", expenses: "200.00", profit_loss: "1000.00", customer_receivables: "800.00", shop_payables: "300.00", loan_balances: "250.00", cash_movement: "750.00" },
+  summary: { total_orders: 2, total_sales: "2000.00", received_payments: "1200.00", expenses: "200.00", supplier_payments: "250.00", profit_loss: "1800.00", customer_receivables: "800.00", shop_payables: "300.00", loan_balances: "250.00", cash_movement: "750.00" },
   customers: [{ customer_id: "customer-1", customer_code: "CUS-1", customer_name: "احمد", total_orders: 2, total_order_value: "2000.00", total_paid: "1200.00", remaining_balance: "800.00", payment_history: [{ date: "2026-08-20", amount: "1200.00", order_number: "ORD-1", recorded_by: "بلال", note: "" }] }],
   debts: { customer_receivables: [{ customer_id: "customer-1", customer_name: "احمد", remaining_balance: "800.00" }], shop_payables: [{ id: "payable-1", person_name: "عرضه کوونکی", debt_type: "COMPANY_SUPPLIER", original_amount: "500.00", remaining_balance: "300.00", payable_date: "2026-08-10", purpose: "مواد" }], loan_repayments: [{ id: "repayment-1", person_name: "محمود", amount: "50.00", payment_date: "2026-08-12", payment_method: "CASH", recorded_by: "بلال" }] },
   charts: { financial_trend: [{ date: "2026-08-20", sales: "1200.00", expenses: "200.00", profit: "1000.00", orders: 2 }] },

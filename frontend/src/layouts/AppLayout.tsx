@@ -10,6 +10,7 @@ import {
   ReceiptText,
   ScanLine,
   Users,
+  WalletCards,
   X,
 } from "lucide-react";
 import { useState } from "react";
@@ -40,6 +41,7 @@ const navigation: NavigationItem[] = [
   },
   { label: "ترلاسه شوې پیسې", description: "د مشتریانو ورکړې", to: "/payments", icon: CircleDollarSign, permission: "manage_payments" },
   { label: "ورځنی حساب کتاب", description: "لګښت، پور او ورځنۍ راکړه ورکړه", to: "/expenses", icon: ReceiptText, permission: "manage_expenses" },
+  { label: "عرضه کوونکو ته پاتې پیسې", description: "هغه پیسې چې دوکان یې باید ورکړي", to: "/suppliers", icon: WalletCards, permission: "manage_expenses" },
   { label: "تفصیلي راپورونه", description: "چاڼ، پرتله، چاپ او CSV", to: "/reports", icon: BarChart3, permission: "view_reports" },
 ];
 

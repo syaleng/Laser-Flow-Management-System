@@ -52,23 +52,25 @@ function DashboardContent({ data }: { data: DashboardData }) {
       ? "border-rose-200 bg-rose-50 text-rose-800"
       : "border-slate-200 bg-slate-50 text-slate-700";
   const kpis = [
-    { label: "فرمایشونه", value: cards.orders.toLocaleString(), icon: ClipboardList, tone: "blue" },
-    { label: "ترلاسه شوي پیسي", value: money(cards.received_payments), icon: Banknote, tone: "emerald" },
+    { label: "خرڅلاو", value: money(cards.sales), icon: ClipboardList, tone: "blue" },
+    { label: "نغدې پیسې", value: money(cards.cash_balance), icon: Banknote, tone: "emerald" },
     { label: "د مشتریانو پاتې پور", value: money(cards.customer_receivables), icon: WalletCards, tone: "amber" },
+    { label: "عرضه کوونکو ته پاتې پیسې", value: money(cards.shop_payables), icon: HandCoins, tone: "orange" },
+    { label: "لګښتونه", value: money(cards.expenses), icon: ReceiptText, tone: "rose" },
     { label: profitLabel, value: money(Math.abs(profitLoss)), icon: profitLoss >= 0 ? TrendingUp : TrendingDown, tone: profitLoss >= 0 ? "emerald" : "rose", cardStyle: profitCardStyle },
   ];
   const empty = cards.orders === 0 && Number(cards.received_payments) === 0 && Number(cards.expenses) === 0 && activity.length === 0;
   return <>
     <p className="mb-4 text-xs text-slate-500">موده: <span dir="ltr">{data.start_date} — {data.end_date}</span></p>
-    <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">{kpis.map(({ label, value, icon: Icon, tone, cardStyle }) => <article key={label} className={`rounded-2xl border p-5 shadow-sm ${cardStyle ?? "border-slate-200 bg-white text-slate-950"}`}><div className={`mb-4 grid size-10 place-items-center rounded-xl ${toneClass(tone)}`}><Icon className="size-5" /></div><p className={`text-sm ${cardStyle ? "font-bold text-current" : "text-slate-500"}`}>{label}</p><p dir="ltr" className={`mt-2 text-right text-2xl font-bold ${cardStyle ? "text-current" : "text-slate-950"}`}>{value}</p></article>)}</div>
+    <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">{kpis.map(({ label, value, icon: Icon, tone, cardStyle }) => <article key={label} className={`rounded-2xl border p-5 shadow-sm ${cardStyle ?? "border-slate-200 bg-white text-slate-950"}`}><div className={`mb-4 grid size-10 place-items-center rounded-xl ${toneClass(tone)}`}><Icon className="size-5" /></div><p className={`text-sm ${cardStyle ? "font-bold text-current" : "text-slate-500"}`}>{label}</p><p dir="ltr" className={`mt-2 text-right text-2xl font-bold ${cardStyle ? "text-current" : "text-slate-950"}`}>{value}</p></article>)}</div>
     {empty && <div className="mt-5"><StatePanel title="په دې موده کې معلومات نشته" detail="کله چې فرمایش، تادیه یا لګښت ثبت شي، معلومات به دلته ښکاره شي." /></div>}
     <ActivityList items={activity} />
   </>;
 }
 
 function ActivityList({ items }: { items: DashboardData["recent_activity"] }) {
-  const labels = { order: "نوی فرمایش", payment: "تادیه", expense: "لګښت", loan_repayment: "د پور بېرته ورکړه", payable_repayment: "د ورکړې تادیه" };
-  const icons = { order: ClipboardList, payment: CreditCard, expense: ReceiptText, loan_repayment: Landmark, payable_repayment: HandCoins };
+  const labels = { order: "نوی فرمایش", payment: "د مشتری ورکړه", expense: "لګښت", loan_repayment: "د پور بېرته ورکړه", payable_repayment: "پخوانۍ ورکړه", supplier_payment: "عرضه کوونکي ته ورکړه" };
+  const icons = { order: ClipboardList, payment: CreditCard, expense: ReceiptText, loan_repayment: Landmark, payable_repayment: HandCoins, supplier_payment: HandCoins };
   return <section className="mt-6 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm"><h2 className="text-lg font-bold">وروستي فعالیتونه</h2>{items.length ? <div className="mt-3 divide-y divide-slate-100">{items.map((item) => { const Icon = icons[item.type]; return <div key={`${item.type}-${item.created_at}-${item.detail}`} className="flex items-start gap-3 py-3"><div className="grid size-9 shrink-0 place-items-center rounded-lg bg-slate-100"><Icon className="size-4" /></div><div className="min-w-0 flex-1"><p className="text-sm font-semibold">{labels[item.type]}</p><p className="truncate text-xs text-slate-500">{item.detail}</p></div><div className="shrink-0 text-left text-xs text-slate-400"><time dir="ltr">{item.date}</time><p>{item.user}</p></div></div>; })}</div> : <p className="mt-4 text-sm text-slate-500">په ټاکلې موده کې فعالیت نشته.</p>}</section>;
 }
 

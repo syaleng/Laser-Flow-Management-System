@@ -3,10 +3,13 @@ import type { ApiEnvelope } from "@/types/api";
 
 import type {
   Customer,
+  CustomerDebtor,
   CustomerInput,
   CustomerLedger,
   CustomerListParams,
   CustomerPage,
+  CustomerPaymentInput,
+  CustomerPaymentResponse,
   CustomerStatement,
 } from "./types";
 
@@ -31,6 +34,22 @@ export async function getCustomerLedger(customerId: string): Promise<CustomerLed
   const { data } = await apiClient.get<ApiEnvelope<CustomerLedger>>(
     `/customers/${customerId}/ledger/`,
   );
+  return data.data;
+}
+
+export async function createCustomerPayment(
+  customerId: string,
+  input: CustomerPaymentInput,
+): Promise<CustomerPaymentResponse> {
+  const { data } = await apiClient.post<ApiEnvelope<CustomerPaymentResponse>>(
+    `/customers/${customerId}/payments/`,
+    input,
+  );
+  return data.data;
+}
+
+export async function getCustomersWithDebt(): Promise<CustomerDebtor[]> {
+  const { data } = await apiClient.get<{ data: CustomerDebtor[] }>("/customers/with-debt/");
   return data.data;
 }
 

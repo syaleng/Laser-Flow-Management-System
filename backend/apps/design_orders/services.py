@@ -46,6 +46,7 @@ LOCKED_AFTER_TERMINAL = {
     "design_category",
     "cut_quantity",
     "unit_price",
+    "material_quantity",
     "order_date",
     "expected_delivery_date",
     "payment_due_date",

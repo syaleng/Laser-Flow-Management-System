@@ -63,7 +63,7 @@ def create_order(owner, customer, category, *, quantity, unit_price, status=Desi
 
 @pytest.mark.django_db
 def test_customer_statement_calculates_summary_and_histories(client, owner, customer, category):
-    order = create_order(owner, customer, category, quantity=10, unit_price=Decimal("100.00"))
+    order = create_order(owner, customer, category, quantity=10, unit_price=Decimal("1000.00"))
     DesignOrderPayment.objects.create(
         design_order=order,
         amount=Decimal("400.00"),
@@ -96,7 +96,7 @@ def test_customer_statement_excludes_cancelled_orders_and_payments(
         customer,
         category,
         quantity=5,
-        unit_price=Decimal("100.00"),
+        unit_price=Decimal("1000.00"),
         status=DesignOrderStatus.CANCELLED,
     )
     DesignOrderPayment.objects.create(
@@ -118,7 +118,7 @@ def test_customer_statement_excludes_cancelled_orders_and_payments(
 
 @pytest.mark.django_db
 def test_customer_ledger_returns_summary_and_running_balance(client, owner, customer, category):
-    order = create_order(owner, customer, category, quantity=10, unit_price=Decimal("100.00"))
+    order = create_order(owner, customer, category, quantity=10, unit_price=Decimal("1000.00"))
     payment = DesignOrderPayment.objects.create(
         design_order=order,
         amount=Decimal("400.00"),
@@ -138,6 +138,7 @@ def test_customer_ledger_returns_summary_and_running_balance(client, owner, cust
     assert len(ledger["entries"]) == 2
     assert ledger["entries"][0]["type"] == "Order"
     assert Decimal(ledger["entries"][0]["amount"]) == Decimal("1000.00")
+    assert Decimal(ledger["entries"][0]["balance_after_transaction"]) == Decimal("1000.00")
     assert Decimal(ledger["entries"][1]["amount"]) == Decimal("-400.00")
     assert Decimal(ledger["entries"][1]["balance_after_transaction"]) == Decimal("600.00")
     assert ledger["entries"][1]["source_id"] == str(payment.id)

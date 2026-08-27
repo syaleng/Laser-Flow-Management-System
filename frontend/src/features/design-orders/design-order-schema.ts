@@ -18,6 +18,7 @@ export const designOrderSchema = z
     design_description: z.string().trim().max(3000),
     cut_quantity: z.number().int().positive("شمېر باید له صفر څخه زیات وي."),
     unit_price: z.number().positive("بیه باید له صفر څخه زیاته وي."),
+    material_quantity: z.number().int().positive("د ډایانو شمېر باید له صفر څخه زیات وي."),
     payment_status: z.enum(["CASH", "PARTIAL", "CREDIT", "FULLY_PAID"]),
     paid_amount: z.number().min(0, "ورکړل شوې پیسې له صفر څخه کمېدای نه شي."),
     status: z.enum(["NEW", "DESIGN_PREPARATION", "CUTTING", "READY_FOR_DELIVERY", "DELIVERED", "CANCELLED"]),

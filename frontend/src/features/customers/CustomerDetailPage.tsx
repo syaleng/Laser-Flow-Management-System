@@ -1,13 +1,15 @@
 import { Archive, ArrowLeft, CreditCard, Edit3, MessageCircle, Printer, ReceiptText, RotateCcw, WalletCards, type LucideIcon } from "lucide-react";
 import { Link, useParams } from "react-router-dom";
 import { Children } from "react";
+import { useState } from "react";
 
 import { Button } from "@/components/ui/Button";
 import { ApiError } from "@/lib/api-client";
 import { formatAfn } from "@/lib/format";
 import { CustomerDesignOrdersPanel } from "@/features/design-orders/CustomerDesignOrdersPanel";
 
-import { useCustomer, useCustomerLedger, useCustomerStatement, useSetCustomerArchived } from "./hooks";
+import { CustomerPaymentForm } from "./CustomerPaymentForm";
+import { useCreateCustomerPayment, useCustomer, useCustomerLedger, useCustomerStatement, useSetCustomerArchived } from "./hooks";
 
 function formatDate(value: string | null): string {
   if (!value) return "نه دي ثبت شوي";
@@ -28,6 +30,8 @@ export function CustomerDetailPage() {
   const statement = useCustomerStatement(customerId);
   const ledger = useCustomerLedger(customerId);
   const archiveMutation = useSetCustomerArchived(customerId);
+  const paymentMutation = useCreateCustomerPayment(customerId);
+  const [showPaymentForm, setShowPaymentForm] = useState(false);
 
   if (customer.isLoading) return <div className="text-slate-500">معلومات راځي…</div>;
   if (customer.isError || !customer.data) {
@@ -39,6 +43,10 @@ export function CustomerDetailPage() {
   }
 
   const data = customer.data;
+  const submitPayment = async (values: { amount: number; payment_date: string; description: string }) => {
+    await paymentMutation.mutateAsync(values);
+    setShowPaymentForm(false);
+  };
   const changeArchiveState = async () => {
     const action = data.is_active ? "archive" : "restore";
     if (data.is_active && !window.confirm("دا مشتري آرشیف شي؟ پخواني معلومات به یې خوندي وي.")) return;
@@ -66,6 +74,9 @@ export function CustomerDetailPage() {
           <p className="mt-2 text-sm text-slate-500">{data.customer_code}</p>
         </div>
         <div className="flex flex-wrap gap-3">
+          <Button onClick={() => setShowPaymentForm((visible) => !visible)}>
+            <CreditCard className="mr-2 size-4" /> تادیه اضافه کول
+          </Button>
           <button type="button" onClick={() => window.print()} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-slate-300 bg-white px-4 font-semibold text-slate-700 hover:bg-slate-50 print:hidden">
             <Printer className="size-4" /> د مشتری راپور چاپ
           </button>
@@ -88,6 +99,31 @@ export function CustomerDetailPage() {
           {archiveMutation.error instanceof ApiError ? archiveMutation.error.message : "د مشتري حالت بدل نه شو."}
         </div>
       )}
+
+      {showPaymentForm && (
+        <CustomerPaymentForm
+          onSubmit={submitPayment}
+          onCancel={() => setShowPaymentForm(false)}
+          serverError={paymentMutation.error instanceof ApiError ? paymentMutation.error.message : null}
+        />
+      )}
+
+      <section className="mb-6" aria-labelledby="customer-financial-summary">
+        <h2 id="customer-financial-summary" className="mb-4 text-xl font-bold text-slate-950">مشتري حساب</h2>
+        {ledger.data ? (
+          <div className="grid gap-4 sm:grid-cols-3">
+            {([
+              ["د فرمایشونو ټول مقدار", money(ledger.data.total_orders_amount), ReceiptText, "bg-blue-50 text-blue-600"],
+              ["ټولې ورکړې", money(ledger.data.total_paid_amount), CreditCard, "bg-emerald-50 text-emerald-600"],
+              ["پاتې حساب", money(ledger.data.remaining_debt_balance), WalletCards, Number(ledger.data.remaining_debt_balance) > 0 ? "bg-rose-50 text-rose-600" : "bg-emerald-50 text-emerald-600"],
+            ] as [string, string, LucideIcon, string][]).map(([title, value, Icon, color]) => (
+              <article key={title} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm"><div className={`mb-4 grid size-10 place-items-center rounded-xl ${color}`}><Icon className="size-5" /></div><p className="text-sm text-slate-500">{title}</p><p dir="ltr" className="mt-2 text-xl font-bold text-slate-950">{value}</p></article>
+            ))}
+          </div>
+        ) : ledger.isLoading ? (
+          <div className="rounded-2xl border border-slate-200 bg-white p-6 text-slate-500">مالي معلومات راځي…</div>
+        ) : null}
+      </section>
 
       <div className="grid gap-6 xl:grid-cols-[1fr_0.8fr]">
         <article className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
@@ -126,16 +162,6 @@ export function CustomerDetailPage() {
               <div className="rounded-xl bg-slate-100 px-3 py-2 text-sm text-slate-600">د حساب ثبتونه: {ledger.data.entries.length}</div>
             </div>
 
-            <div className="grid gap-4 sm:grid-cols-3">
-              {([
-                ["ټول فرمایشونه", money(ledger.data.total_orders_amount), ReceiptText, "bg-blue-50 text-blue-600"],
-                ["ټولې ورکړې", money(ledger.data.total_paid_amount), CreditCard, "bg-emerald-50 text-emerald-600"],
-                ["پاتې حساب", money(ledger.data.remaining_debt_balance), WalletCards, "bg-rose-50 text-rose-600"],
-              ] as [string, string, LucideIcon, string][]).map(([title, value, Icon, color]) => (
-                <article key={title} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm"><div className={`mb-4 grid size-10 place-items-center rounded-xl ${color}`}><Icon className="size-5" /></div><p className="text-sm text-slate-500">{title}</p><p dir="ltr" className="mt-2 text-xl font-bold text-slate-950">{value}</p></article>
-              ))}
-            </div>
-
             {ledger.data.entries.length === 0 ? (
               <p className="mt-5 rounded-xl border border-dashed border-slate-300 bg-slate-50 p-6 text-center text-sm text-slate-500">تر اوسه د حساب معلومات نشته</p>
             ) : (
@@ -144,9 +170,9 @@ export function CustomerDetailPage() {
                   <thead className="bg-slate-50 text-xs text-slate-500">
                     <tr>
                       <th className="px-4 py-3">نیټه</th>
-                      <th className="px-4 py-3">ډول</th>
                       <th className="px-4 py-3">تشریح</th>
-                      <th className="px-4 py-3">مقدار</th>
+                      <th className="px-4 py-3 text-rose-700">نوی فرمایش</th>
+                      <th className="px-4 py-3 text-emerald-700">ترلاسه شوې تادیه</th>
                       <th className="px-4 py-3">پاتې بیلانس</th>
                     </tr>
                   </thead>
@@ -154,9 +180,9 @@ export function CustomerDetailPage() {
                     {ledger.data.entries.map((entry) => (
                       <tr key={`${entry.date}-${entry.type}-${entry.description}-${entry.source_id}`}>
                         <td className="px-4 py-3 text-slate-600">{new Intl.DateTimeFormat("en-GB", { year: "numeric", month: "short", day: "numeric" }).format(new Date(entry.date))}</td>
-                        <td className={`px-4 py-3 font-semibold ${entry.type === "Order" ? "text-rose-700" : "text-emerald-700"}`}>{entry.type === "Order" ? "فرمایش (DEBIT)" : "ورکړه (CREDIT)"}</td>
                         <td className="px-4 py-3 text-slate-700">{entry.description}</td>
-                        <td className={`px-4 py-3 font-bold ${entry.type === "Order" ? "text-rose-700" : "text-emerald-700"}`} dir="ltr">{entry.type === "Order" ? "+" : "-"}{money(Math.abs(Number(entry.amount)))}</td>
+                        <td className="px-4 py-3 font-bold text-rose-700" dir="ltr">{entry.type === "Order" ? `+${money(entry.amount)}` : "-"}</td>
+                        <td className="px-4 py-3 font-bold text-emerald-700" dir="ltr">{entry.type === "Payment" ? `-${money(Math.abs(Number(entry.amount)))}` : "-"}</td>
                         <td className="px-4 py-3 font-semibold text-slate-900" dir="ltr">{money(entry.balance_after_transaction)}</td>
                       </tr>
                     ))}
@@ -171,17 +197,6 @@ export function CustomerDetailPage() {
         {statement.isError && <div role="alert" className="mt-4 rounded-xl bg-red-50 p-5 text-red-700">مالي حساب ترلاسه نه شو. مهرباني وکړئ بیا هڅه وکړئ.</div>}
         {statement.data && (
           <>
-            <div className="mt-5 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-              {([
-                ["ټول فرمایشونه", statement.data.total_orders.toLocaleString(), ReceiptText, "bg-blue-50 text-blue-600"],
-                ["ټول مقدار", money(statement.data.total_amount), WalletCards, "bg-amber-50 text-amber-600"],
-                ["ټولې ورکړې", money(statement.data.total_paid), CreditCard, "bg-emerald-50 text-emerald-600"],
-                ["پاتې حساب", money(statement.data.remaining_balance), WalletCards, "bg-rose-50 text-rose-600"],
-              ] as [string, string, LucideIcon, string][]).map(([title, value, Icon, color]) => (
-                <article key={String(title)} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm"><div className={`mb-4 grid size-10 place-items-center rounded-xl ${color}`}><Icon className="size-5" /></div><p className="text-sm text-slate-500">{title}</p><p dir="ltr" className="mt-2 text-xl font-bold text-slate-950">{value}</p></article>
-              ))}
-            </div>
-
             <div className="mt-5 grid gap-5 xl:grid-cols-2">
               <StatementTable title="د فرمایشونو حساب" empty="تر اوسه مالي فرمایش نشته." headers={["فرمایش", "نېټه", "ټول مقدار", "ورکړې", "پاتې", "حالت"]}>
                 {statement.data.orders.map((order) => <tr key={order.order_number}><td className="px-4 py-3 font-semibold text-slate-900">{order.order_number}</td><td className="px-4 py-3 text-slate-600">{order.date}</td><td className="px-4 py-3">{money(order.total_amount)}</td><td className="px-4 py-3 text-emerald-700">{money(order.paid_amount)}</td><td className="px-4 py-3 text-rose-700">{money(order.remaining_amount)}</td><td className="px-4 py-3">{paymentStatusLabels[order.payment_status] ?? order.payment_status}</td></tr>)}

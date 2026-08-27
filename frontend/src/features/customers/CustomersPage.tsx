@@ -3,9 +3,10 @@ import { type FormEvent, useMemo, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 
 import { ApiError } from "@/lib/api-client";
+import { formatAfn } from "@/lib/format";
 import { primaryButtonClass } from "@/components/ui/Button";
 
-import { useCustomers } from "./hooks";
+import { useCustomers, useCustomersWithDebt } from "./hooks";
 import type { CustomerListParams } from "./types";
 
 export function CustomersPage() {
@@ -24,6 +25,7 @@ export function CustomersPage() {
     [searchParams],
   );
   const customers = useCustomers(params);
+  const debtors = useCustomersWithDebt();
 
   const setFilter = (name: string, value: string, resetPage = true) => {
     const next = new URLSearchParams(searchParams);
@@ -152,6 +154,7 @@ export function CustomersPage() {
                   <th className="px-5 py-4">مشتري</th>
                   <th className="px-5 py-4">اړیکه</th>
                   <th className="px-5 py-4">WhatsApp</th>
+                  <th className="px-5 py-4">پاتې حساب</th>
                   <th className="px-5 py-4">حالت</th>
                   <th className="px-5 py-4 text-left">عمل</th>
                 </tr>
@@ -185,6 +188,21 @@ export function CustomersPage() {
                           ? "اجازه ثبت شوې"
                           : "اجازه نشته"}
                       </p>
+                    </td>
+                    <td className="px-5 py-4">
+                      <span
+                        dir="ltr"
+                        className={
+                          Number(customer.current_debt) > 0
+                            ? "font-bold text-rose-700"
+                            : "font-bold text-emerald-700"
+                        }
+                      >
+                        {Number(customer.current_debt || 0).toLocaleString("en-US", {
+                          minimumFractionDigits: 2,
+                          maximumFractionDigits: 2,
+                        })} AFN
+                      </span>
                     </td>
                     <td className="px-5 py-4">
                       <span
@@ -241,6 +259,34 @@ export function CustomersPage() {
           </div>
         </div>
       )}
+
+      <section className="mt-6 overflow-hidden rounded-2xl border border-amber-200 bg-amber-50/40 text-right shadow-sm" dir="rtl">
+        <div className="border-b border-amber-200 px-5 py-4">
+          <h2 className="text-lg font-bold text-slate-950">له پور سره مشتریان</h2>
+          <p className="mt-1 text-sm text-slate-600">هغه مشتریان چې پاتې حساب لري</p>
+        </div>
+        {debtors.isLoading && <p className="p-5 text-sm text-slate-500">معلومات راځي…</p>}
+        {debtors.data?.length === 0 && <p className="p-5 text-sm text-emerald-700">اوس مهال هېڅ مشتری پاتې حساب نه لري.</p>}
+        {debtors.data && debtors.data.length > 0 && (
+          <div className="overflow-x-auto">
+            <table className="w-full text-right text-sm">
+              <thead className="border-b border-amber-200 text-xs text-slate-500">
+                <tr><th className="px-5 py-3">مشتري</th><th className="px-5 py-3">موبایل</th><th className="px-5 py-3">ټول پور</th><th className="px-5 py-3">وروستۍ معامله</th></tr>
+              </thead>
+              <tbody className="divide-y divide-amber-100">
+                {debtors.data.map((debtor) => (
+                  <tr key={debtor.id}>
+                    <td className="px-5 py-3 font-semibold"><Link className="text-brand-700 hover:underline" to={`/customers/${debtor.id}`}>{debtor.full_name}</Link></td>
+                    <td className="px-5 py-3 text-slate-600">{debtor.phone || "—"}</td>
+                    <td className="px-5 py-3 font-bold text-rose-700" dir="ltr">{formatAfn(debtor.total_debt)}</td>
+                    <td className="px-5 py-3 text-slate-600">{debtor.last_transaction_date || "—"}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </section>
     </section>
   );
 }

@@ -15,6 +15,7 @@ from apps.daily_journal.models import (
     PayableRepayment,
 )
 from apps.design_orders.models import DesignCategory, DesignOrder, DesignOrderPayment
+from apps.suppliers.models import Supplier, SupplierTransaction
 
 
 @pytest.fixture
@@ -97,6 +98,23 @@ def test_report_calculations_customer_debt_and_repayment_history(client, users):
     PayableRepayment.objects.create(
         payable_account=payable, amount=Decimal("100.00"), payment_date=selected, created_by=manager
     )
+    supplier = Supplier.objects.create(name="New supplier", description="Diamonds")
+    SupplierTransaction.objects.create(
+        supplier=supplier,
+        transaction_type="DEBIT",
+        amount="500.00",
+        description="Diamonds",
+        transaction_date=selected,
+        created_by=manager,
+    )
+    SupplierTransaction.objects.create(
+        supplier=supplier,
+        transaction_type="CREDIT",
+        amount="200.00",
+        description="Supplier payment",
+        transaction_date=selected,
+        created_by=manager,
+    )
 
     client.force_authenticate(manager)
     response = client.get(
@@ -111,18 +129,19 @@ def test_report_calculations_customer_debt_and_repayment_history(client, users):
         "total_sales": "1000.00",
         "received_payments": "400.00",
         "expenses": "125.00",
-        "profit_loss": "275.00",
+        "supplier_payments": "300.00",
+        "profit_loss": "875.00",
         "customer_receivables": "600.00",
-        "shop_payables": "400.00",
+        "shop_payables": "700.00",
         "loan_balances": "250.00",
-        "cash_movement": "425.00",
+        "cash_movement": "-275.00",
     }
     assert report["customers"][0]["customer_name"] == customer.full_name
     assert report["customers"][0]["payment_history"][0]["amount"] == "400.00"
     assert report["debts"]["customer_receivables"][0]["remaining_balance"] == "600.00"
     assert report["debts"]["shop_payables"][0]["remaining_balance"] == "400.00"
     assert report["debts"]["loan_repayments"][0]["amount"] == "50.00"
-    assert report["charts"]["financial_trend"][0]["profit"] == "275.00"
+    assert report["charts"]["financial_trend"][0]["profit"] == "875.00"
 
 
 @pytest.mark.django_db
@@ -201,7 +220,7 @@ def test_order_payment_expense_and_report_reconcile_through_apis(client, users):
             "design_name": "Reconciliation order",
             "design_description": "",
             "cut_quantity": 10,
-            "unit_price": "100.00",
+            "unit_price": "1000.00",
             "paid_amount": "0.00",
             "payment_status": "CREDIT",
             "status": "NEW",
@@ -241,6 +260,7 @@ def test_order_payment_expense_and_report_reconcile_through_apis(client, users):
     assert summary["total_sales"] == "1000.00"
     assert summary["received_payments"] == "600.00"
     assert summary["expenses"] == "0.00"
-    assert summary["profit_loss"] == "600.00"
+    assert summary["supplier_payments"] == "0.00"
+    assert summary["profit_loss"] == "1000.00"
     assert summary["customer_receivables"] == "400.00"
     assert summary["cash_movement"] == "600.00"

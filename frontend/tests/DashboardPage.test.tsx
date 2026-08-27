@@ -17,7 +17,7 @@ import { DashboardPage } from "@/features/dashboard/DashboardPage";
 
 const data: DashboardData = {
   period: "today", start_date: "2026-08-23", end_date: "2026-08-23",
-  cards: { orders: 3, received_payments: "1200.00", expenses: "200.00", profit_loss: "1000.00", customer_receivables: "5000.00", shop_payables: "700.00", net_financial_position: "4550.00" },
+  cards: { orders: 3, sales: "2000.00", received_payments: "1200.00", expenses: "200.00", supplier_payments: "300.00", profit_loss: "1800.00", cash_balance: "700.00", customer_receivables: "5000.00", shop_payables: "700.00", net_financial_position: "4550.00" },
   debt: { customer_receivables: "5000.00", loan_receivables: "250.00", shop_payables: "700.00" },
   charts: {
     income_expense_profit: [{ date: "2026-08-23", income: "1200.00", expenses: "200.00", profit: "1000.00" }],
@@ -34,8 +34,8 @@ describe("DashboardPage", () => {
   it("renders the simple API-backed cards and activity", () => {
     useDashboard.mockReturnValue({ data, isLoading: false, isError: false });
     render(<MemoryRouter><DashboardPage /></MemoryRouter>);
-    expect(screen.getByText("3")).toBeInTheDocument();
-    expect(screen.getByText("1,200.00 AFN")).toBeInTheDocument();
+    expect(screen.getByText("2,000.00 AFN")).toBeInTheDocument();
+    expect(screen.getByText("خرڅلاو")).toBeInTheDocument();
     expect(screen.getByText("د مشتریانو پاتې پور")).toBeInTheDocument();
     expect(screen.getByText("ګټه")).toBeInTheDocument();
     expect(screen.getByText("1200 AFN · ORD-1")).toBeInTheDocument();

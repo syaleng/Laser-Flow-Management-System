@@ -13,6 +13,7 @@ from apps.daily_journal.models import (
     PayableRepayment,
 )
 from apps.design_orders.models import DesignOrder, DesignOrderPayment, DesignOrderStatus
+from apps.suppliers.models import Supplier, SupplierTransaction
 
 ZERO = Decimal("0.00")
 
@@ -74,8 +75,8 @@ def trend(payments, expenses, orders, start, end):
         defaultdict(lambda: ZERO),
         defaultdict(int),
     )
-    for payment in payments:
-        income[key(payment.payment_date)] += payment.amount
+    for order in orders:
+        income[key(order.order_date)] += order.total_amount
     for expense in expenses:
         costs[key(expense.expense_date)] += expense.amount
     for order in orders:
@@ -129,30 +130,36 @@ def build_report(filters):
         payments = payments.filter(design_order__payment_status=payment_status)
     payments = payments.select_related("design_order", "design_order__customer", "recorded_by")
     customer_report = bool(filters.get("customer_id"))
-    expenses = Expense.objects.none() if customer_report else Expense.objects.filter(
-        expense_date__range=(start, end)
+    expenses = (
+        Expense.objects.none()
+        if customer_report
+        else Expense.objects.filter(expense_date__range=(start, end))
     )
-    loans_given = MoneyLoan.objects.none() if customer_report else MoneyLoan.objects.filter(
-        loan_date__range=(start, end)
+    loans_given = (
+        MoneyLoan.objects.none()
+        if customer_report
+        else MoneyLoan.objects.filter(loan_date__range=(start, end))
     )
     loan_repayments = (
         MoneyLoanRepayment.objects.none()
         if customer_report
-        else MoneyLoanRepayment.objects.filter(
-            payment_date__range=(start, end)
-        ).select_related("money_loan", "created_by")
+        else MoneyLoanRepayment.objects.filter(payment_date__range=(start, end)).select_related(
+            "money_loan", "created_by"
+        )
     )
     payable_repayments = (
         PayableRepayment.objects.none()
         if customer_report
         else PayableRepayment.objects.filter(payment_date__range=(start, end))
     )
-    payables_created = (
-        PayableAccount.objects.none()
+    supplier_payments = (
+        SupplierTransaction.objects.none()
         if customer_report
-        else PayableAccount.objects.filter(payable_date__range=(start, end))
+        else SupplierTransaction.objects.filter(
+            transaction_date__range=(start, end),
+            transaction_type=SupplierTransaction.TransactionType.CREDIT,
+        )
     )
-
     received, expense_total = total(payments), total(expenses)
     customer_balances = defaultdict(
         lambda: {"orders": 0, "value": ZERO, "paid": ZERO, "remaining": ZERO, "customer": None}
@@ -201,9 +208,11 @@ def build_report(filters):
     ]
     customer_rows.sort(key=lambda row: row["customer_name"])
 
-    payables = PayableAccount.objects.none() if customer_report else PayableAccount.objects.filter(
-        payable_date__lte=end
-    ).prefetch_related("repayments")
+    payables = (
+        PayableAccount.objects.none()
+        if customer_report
+        else PayableAccount.objects.filter(payable_date__lte=end).prefetch_related("repayments")
+    )
     payable_rows = [
         {
             "id": str(item.id),
@@ -217,16 +226,42 @@ def build_report(filters):
         for item in payables
         if remaining_payable_amount(item, end) > ZERO
     ]
-    loans = MoneyLoan.objects.none() if customer_report else MoneyLoan.objects.filter(
-        loan_date__lte=end
-    ).prefetch_related("repayments")
+    suppliers = (
+        Supplier.objects.none()
+        if customer_report
+        else Supplier.objects.prefetch_related("transactions")
+    )
+    for supplier in suppliers:
+        entries = [entry for entry in supplier.transactions.all() if entry.transaction_date <= end]
+        debit = sum((entry.amount for entry in entries if entry.transaction_type == "DEBIT"), ZERO)
+        credit = sum(
+            (entry.amount for entry in entries if entry.transaction_type == "CREDIT"), ZERO
+        )
+        remaining = debit - credit
+        if remaining > ZERO:
+            payable_rows.append(
+                {
+                    "id": str(supplier.id),
+                    "person_name": supplier.name,
+                    "debt_type": "SUPPLIER",
+                    "original_amount": money(debit),
+                    "remaining_balance": money(remaining),
+                    "payable_date": max(entry.transaction_date for entry in entries),
+                    "purpose": supplier.description or "Supplier materials or services",
+                }
+            )
+    loans = (
+        MoneyLoan.objects.none()
+        if customer_report
+        else MoneyLoan.objects.filter(loan_date__lte=end).prefetch_related("repayments")
+    )
     loan_balance = sum((remaining_loan_amount(item, end) for item in loans), ZERO)
     customer_debt = sum((row["remaining"] for row in customer_balances.values()), ZERO)
     shop_payables = sum((Decimal(row["remaining_balance"]) for row in payable_rows), ZERO)
     sales = total(period_orders, "total_amount")
     loan_given_total, loan_return_total = total(loans_given), total(loan_repayments)
     payable_return_total = total(payable_repayments)
-    payable_created_total = total(payables_created)
+    supplier_payment_total = total(supplier_payments)
     return {
         "filter_options": {
             "customers": [
@@ -253,7 +288,8 @@ def build_report(filters):
             "total_sales": money(sales),
             "received_payments": money(received),
             "expenses": money(expense_total),
-            "profit_loss": money(received - expense_total),
+            "supplier_payments": money(supplier_payment_total + payable_return_total),
+            "profit_loss": money(sales - expense_total),
             "customer_receivables": money(customer_debt),
             "shop_payables": money(shop_payables),
             "loan_balances": money(loan_balance),
@@ -262,8 +298,8 @@ def build_report(filters):
                 - expense_total
                 - loan_given_total
                 + loan_return_total
-                + payable_created_total
                 - payable_return_total
+                - supplier_payment_total
             ),
         },
         "customers": customer_rows,
