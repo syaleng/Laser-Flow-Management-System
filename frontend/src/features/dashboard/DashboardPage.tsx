@@ -1,6 +1,7 @@
 import { useState, type ReactNode } from "react";
 import { Banknote, ClipboardList, CreditCard, HandCoins, Landmark, ReceiptText, RefreshCw, TrendingDown, TrendingUp, WalletCards } from "lucide-react";
 import { Link } from "react-router-dom";
+import { Bar, CartesianGrid, ComposedChart, Legend, Line, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 
 import { useAuth } from "@/features/auth/auth-context";
 import { formatAfn } from "@/lib/format";
@@ -45,6 +46,7 @@ export function DashboardPage() {
 function DashboardContent({ data }: { data: DashboardData }) {
   const { cards, recent_activity: activity } = data;
   const profitLoss = Number(cards.profit_loss);
+  const cashBalance = Number(cards.cash_balance);
   const profitLabel = profitLoss > 0 ? "ګټه" : profitLoss < 0 ? "زیان" : "نه ګټه، نه زیان";
   const profitCardStyle = profitLoss > 0
     ? "border-emerald-200 bg-emerald-50 text-emerald-800"
@@ -53,7 +55,7 @@ function DashboardContent({ data }: { data: DashboardData }) {
       : "border-slate-200 bg-slate-50 text-slate-700";
   const kpis = [
     { label: "خرڅلاو", value: money(cards.sales), icon: ClipboardList, tone: "blue" },
-    { label: "نغدې پیسې", value: money(cards.cash_balance), icon: Banknote, tone: "emerald" },
+    { label: "نغدې پیسې", value: money(cards.cash_balance), icon: Banknote, tone: cashBalance < 0 ? "rose" : "emerald", cardStyle: cashBalance < 0 ? "border-rose-200 bg-rose-50 text-rose-800" : undefined },
     { label: "د مشتریانو پاتې پور", value: money(cards.customer_receivables), icon: WalletCards, tone: "amber" },
     { label: "عرضه کوونکو ته پاتې پیسې", value: money(cards.shop_payables), icon: HandCoins, tone: "orange" },
     { label: "لګښتونه", value: money(cards.expenses), icon: ReceiptText, tone: "rose" },
@@ -64,8 +66,20 @@ function DashboardContent({ data }: { data: DashboardData }) {
     <p className="mb-4 text-xs text-slate-500">موده: <span dir="ltr">{data.start_date} — {data.end_date}</span></p>
     <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">{kpis.map(({ label, value, icon: Icon, tone, cardStyle }) => <article key={label} className={`rounded-2xl border p-5 shadow-sm ${cardStyle ?? "border-slate-200 bg-white text-slate-950"}`}><div className={`mb-4 grid size-10 place-items-center rounded-xl ${toneClass(tone)}`}><Icon className="size-5" /></div><p className={`text-sm ${cardStyle ? "font-bold text-current" : "text-slate-500"}`}>{label}</p><p dir="ltr" className={`mt-2 text-right text-2xl font-bold ${cardStyle ? "text-current" : "text-slate-950"}`}>{value}</p></article>)}</div>
     {empty && <div className="mt-5"><StatePanel title="په دې موده کې معلومات نشته" detail="کله چې فرمایش، تادیه یا لګښت ثبت شي، معلومات به دلته ښکاره شي." /></div>}
+    {!empty && <div className="mt-6 grid gap-5 xl:grid-cols-2">
+      <DashboardChart title="خرڅلاو، لګښت او ګټه">
+        <ResponsiveContainer width="100%" height={260}><ComposedChart data={data.charts.income_expense_profit}><CartesianGrid strokeDasharray="3 3" vertical={false} /><XAxis dataKey="date" tick={{ fontSize: 10 }} /><YAxis width={48} tick={{ fontSize: 10 }} /><Tooltip formatter={(value) => money(Number(value))} /><Legend /><Bar dataKey="income" name="خرڅلاو" fill="#2563eb" radius={[4, 4, 0, 0]} /><Bar dataKey="expenses" name="لګښت" fill="#e11d48" radius={[4, 4, 0, 0]} /><Line dataKey="profit" name="ګټه / زیان" stroke="#059669" strokeWidth={3} dot={false} /></ComposedChart></ResponsiveContainer>
+      </DashboardChart>
+      <DashboardChart title="د مشتریانو ترلاسه شوې پیسې">
+        <ResponsiveContainer width="100%" height={260}><ComposedChart data={data.charts.payment_trend}><CartesianGrid strokeDasharray="3 3" vertical={false} /><XAxis dataKey="date" tick={{ fontSize: 10 }} /><YAxis width={48} tick={{ fontSize: 10 }} /><Tooltip formatter={(value) => money(Number(value))} /><Bar dataKey="value" name="ترلاسه شوې پیسې" fill="#059669" radius={[5, 5, 0, 0]} /></ComposedChart></ResponsiveContainer>
+      </DashboardChart>
+    </div>}
     <ActivityList items={activity} />
   </>;
+}
+
+function DashboardChart({ title, children }: { title: string; children: ReactNode }) {
+  return <section className="surface-panel p-4 sm:p-5"><h2 className="mb-4 text-base font-bold text-slate-900">{title}</h2><div dir="ltr">{children}</div></section>;
 }
 
 function ActivityList({ items }: { items: DashboardData["recent_activity"] }) {

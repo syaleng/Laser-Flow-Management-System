@@ -148,7 +148,7 @@ export function CustomersPage() {
       {customers.data && customers.data.data.length > 0 && (
         <div dir="rtl" className="overflow-hidden rounded-2xl border border-slate-200 bg-white text-right shadow-sm">
           <div className="overflow-x-auto">
-            <table dir="rtl" className="w-full text-right text-sm">
+            <table dir="rtl" className="data-table w-full min-w-[860px] text-right text-sm">
               <thead className="border-b border-slate-200 bg-slate-50 text-xs font-semibold tracking-wide text-slate-500">
                 <tr>
                   <th className="px-5 py-4">مشتري</th>
@@ -269,7 +269,7 @@ export function CustomersPage() {
         {debtors.data?.length === 0 && <p className="p-5 text-sm text-emerald-700">اوس مهال هېڅ مشتری پاتې حساب نه لري.</p>}
         {debtors.data && debtors.data.length > 0 && (
           <div className="overflow-x-auto">
-            <table className="w-full text-right text-sm">
+            <table className="data-table w-full min-w-[680px] text-right text-sm">
               <thead className="border-b border-amber-200 text-xs text-slate-500">
                 <tr><th className="px-5 py-3">مشتري</th><th className="px-5 py-3">موبایل</th><th className="px-5 py-3">ټول پور</th><th className="px-5 py-3">وروستۍ معامله</th></tr>
               </thead>

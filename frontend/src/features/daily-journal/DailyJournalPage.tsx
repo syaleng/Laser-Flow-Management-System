@@ -1,6 +1,7 @@
 import { Banknote, BookOpen, CalendarDays, CheckCircle2, CircleDollarSign, CreditCard, HandCoins, Plus, ReceiptText, WalletCards } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
+import { Link } from "react-router-dom";
 
 import { ApiError } from "@/lib/api-client";
 import { formatAfn } from "@/lib/format";
@@ -68,12 +69,21 @@ export function DailyJournalPage() {
 
       <TransactionTable transactions={report.data?.transactions ?? []} />
 
+      <section className="mt-6 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+        <div><h2 className="text-lg font-bold text-slate-950">نوی مالي ثبت</h2><p className="mt-1 text-sm text-slate-500">د کار ډول وټاکئ؛ هره معامله په خپل سم حساب کې ثبتېږي.</p></div>
+        <div className="mt-4 grid gap-3 sm:grid-cols-3">
+          <a href="#expense-entry" className="rounded-xl border border-rose-200 bg-rose-50 p-4 text-rose-800 transition hover:border-rose-300"><ReceiptText className="size-5" /><strong className="mt-2 block text-sm">لګښت ثبتول</strong><span className="mt-1 block text-xs">د ډایانو اخیستل او نور ورځني لګښتونه</span></a>
+          <Link to="/customers" className="rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-emerald-800 transition hover:border-emerald-300"><Banknote className="size-5" /><strong className="mt-2 block text-sm">د مشتری پیسې اخیستل</strong><span className="mt-1 block text-xs">مشتري وټاکئ او ورکړه یې ثبت کړئ</span></Link>
+          <Link to="/suppliers" className="rounded-xl border border-orange-200 bg-orange-50 p-4 text-orange-800 transition hover:border-orange-300"><WalletCards className="size-5" /><strong className="mt-2 block text-sm">عرضه کوونکي ته پیسې ورکول</strong><span className="mt-1 block text-xs">عرضه کوونکی وټاکئ او ورکړه ثبت کړئ</span></Link>
+        </div>
+      </section>
+
       <div className="mt-6 grid gap-6 xl:grid-cols-3">
-        <JournalForm title="نوی ورځنی لګښت" icon={ReceiptText} onSubmit={submitExpense} submitting={journal.addExpense.isPending}>
+        <div id="expense-entry"><JournalForm title="نوی ورځنی لګښت" icon={ReceiptText} onSubmit={submitExpense} submitting={journal.addExpense.isPending}>
           <label className="text-sm font-semibold text-slate-700">د لګښت ډول<select className={inputClass} value={expenseForm.category} onChange={(event) => setExpenseForm({ ...expenseForm, category: event.target.value })}><option value="ELECTRICITY_WATER">برېښنا او اوبه</option><option value="RENT">کرایه</option><option value="FOOD_STAFF">خوراک او د کارکوونکو ورځني لګښتونه</option><option value="TRANSPORTATION">ترانسپورټ</option><option value="MAINTENANCE">ساتنه او ترمیم</option><option value="MATERIALS">مواد</option><option value="DIAMONDS">د ډایانو اخیستل</option><option value="OTHER">نور لګښتونه</option></select></label>
           <label className="text-sm font-semibold text-slate-700">مقدار (AFN)<input required min="0.01" step="0.01" type="number" className={inputClass} value={expenseForm.amount} onChange={(event) => setExpenseForm({ ...expenseForm, amount: event.target.value })} /></label>
           <label className="text-sm font-semibold text-slate-700">تشریح<textarea className={inputClass} value={expenseForm.note} onChange={(event) => setExpenseForm({ ...expenseForm, note: event.target.value })} /></label>
-        </JournalForm>
+        </JournalForm></div>
         <JournalForm title="د ترلاسه کېدونکو پورونو حساب" description="هغه پیسې چې موږ نورو کسانو ته ورکړي او باید بېرته ترلاسه یې کړو." icon={HandCoins} onSubmit={submitLoan} submitting={journal.addLoan.isPending}>
           <label className="text-sm font-semibold text-slate-700">د شخص نوم<input required className={inputClass} value={loanForm.person_name} onChange={(event) => setLoanForm({ ...loanForm, person_name: event.target.value })} /></label>
           <label className="text-sm font-semibold text-slate-700">د پور ډول<select className={inputClass} value={loanForm.debt_type} onChange={(event) => setLoanForm({ ...loanForm, debt_type: event.target.value })}>{debtTypes.map((type) => <option key={type.value} value={type.value}>{type.label}</option>)}</select></label>

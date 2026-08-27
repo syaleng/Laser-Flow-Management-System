@@ -29,4 +29,34 @@ input[type="email"], input[type="password"], input[type="tel"], input[type="numb
 [dir="rtl"] .lucide-arrow-left { transform: rotate(180deg); }
 .field { margin-top: 0.5rem; min-height: 2.75rem; width: 100%; border-radius: 0.75rem; border: 1px solid #cbd5e1; background: white; padding: 0.625rem 0.75rem; color: #0f172a; outline: none; transition: border-color 150ms, box-shadow 150ms; }
 .field:focus { border-color: #3b82f6; box-shadow: 0 0 0 3px #dbeafe; }
-@media print { nav, aside, button { display: none !important; } main { padding: 0 !important; } }
+.page-shell { width: 100%; max-width: 1600px; margin-inline: auto; }
+.page-header { display: flex; flex-direction: column; gap: 1rem; margin-bottom: 1.5rem; padding-bottom: 1.25rem; border-bottom: 1px solid #e2e8f0; }
+.page-eyebrow { margin: 0; color: #2563eb; font-size: .8125rem; font-weight: 700; }
+.page-title { margin: .2rem 0 0; color: #020617; font-size: clamp(1.65rem, 3vw, 2.25rem); font-weight: 800; line-height: 1.25; letter-spacing: -.025em; }
+.page-description { max-width: 48rem; margin: .45rem 0 0; color: #64748b; font-size: .875rem; line-height: 1.75; }
+.page-actions { display: flex; flex-wrap: wrap; align-items: center; gap: .625rem; }
+.surface-panel { border: 1px solid #e2e8f0; border-radius: 1rem; background: #fff; box-shadow: 0 1px 2px rgb(15 23 42 / .05); }
+.state-panel { display: flex; min-height: 10rem; flex-direction: column; align-items: center; justify-content: center; border: 1px dashed #cbd5e1; border-radius: 1rem; background: rgb(255 255 255 / .7); padding: 2rem; text-align: center; }
+.data-table th { white-space: nowrap; font-size: .75rem; font-weight: 700; color: #64748b; }
+.data-table tbody tr { transition: background-color 150ms; }
+.data-table tbody tr:hover { background: #f8fafc; }
+
+@media (min-width: 1024px) {
+  .page-header { flex-direction: row; align-items: flex-end; justify-content: space-between; }
+  .page-actions { justify-content: flex-end; }
+}
+
+@media print {
+  @page { size: A4; margin: 12mm; }
+  :root, body { background: #fff !important; color: #000; }
+  nav, aside, header[role="banner"], button, .print\:hidden { display: none !important; }
+  main { padding: 0 !important; }
+  .page-shell { max-width: none; }
+  .surface-panel, article, table, svg { break-inside: avoid; box-shadow: none !important; }
+  table { font-size: 10px !important; }
+  thead { display: table-header-group; }
+  tr { break-inside: avoid; }
+  .report-chart { break-inside: avoid; margin-block: 6mm; }
+  .report-chart .recharts-responsive-container { height: 210px !important; }
+  .report-chart + .report-chart { break-before: page; }
+}

@@ -86,7 +86,7 @@ export function AppLayout() {
             onClick={() => setOpen(false)}
             className={({ isActive }) =>
               twMerge(
-                "flex items-center gap-3 rounded-xl px-4 py-3 text-slate-300 transition hover:bg-slate-800 hover:text-white",
+                "group flex items-center gap-3 rounded-xl px-4 py-3 text-slate-300 transition hover:bg-slate-800 hover:text-white",
                 isActive && "bg-brand-600 text-white shadow-sm hover:bg-brand-600",
               )
             }
@@ -143,6 +143,7 @@ export function AppLayout() {
       </aside>
       <div className="lg:pr-64">
         <header
+          role="banner"
           className="sticky top-0 z-20 flex min-h-20 items-center justify-between border-b border-slate-200 bg-white/95 px-4 py-3 shadow-sm shadow-slate-200/50 backdrop-blur lg:px-8"
           dir="rtl"
         >
@@ -219,8 +220,8 @@ export function AppLayout() {
             </div>
           </div>
         </header>
-        <main className="p-5 lg:p-8">
-          <Outlet />
+        <main className="px-4 py-5 sm:px-6 lg:px-8 lg:py-7">
+          <div className="page-shell"><Outlet /></div>
         </main>
       </div>
     </div>

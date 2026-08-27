@@ -13,7 +13,7 @@ import { ApiError } from "@/lib/api-client";
 import { useAuth } from "./auth-context";
 
 const schema = z.object({
-  email: z.email("Enter a valid email address."),
+  email: z.string().trim().min(1, "Enter your email or username."),
   password: z.string().min(1, "Enter your password."),
 });
 type LoginForm = z.infer<typeof schema>;
@@ -94,7 +94,7 @@ export function LoginPage() {
                 </Button>
               </form>
 
-              <p className="mt-7 text-center text-sm font-medium text-[#C9A227]">Forgot your password?</p>
+              <p className="mt-7 text-center text-xs leading-5 text-slate-400">For account access or password help, contact the system owner.</p>
             </section>
           </div>
         </section>
