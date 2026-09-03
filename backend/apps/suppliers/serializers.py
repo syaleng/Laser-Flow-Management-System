@@ -88,3 +88,7 @@ class SupplierTransactionInputSerializer(serializers.Serializer):
     amount = serializers.DecimalField(max_digits=14, decimal_places=2, min_value=Decimal("0.01"))
     description = serializers.CharField(max_length=255, allow_blank=False)
     transaction_date = serializers.DateField(required=False)
+
+
+class VoidSupplierTransactionSerializer(serializers.Serializer):
+    reason = serializers.CharField(min_length=3, max_length=500)

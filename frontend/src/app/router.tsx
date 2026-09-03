@@ -7,6 +7,8 @@ import { LoginPage } from "@/features/auth/LoginPage";
 import { PermissionRoute } from "@/features/auth/PermissionRoute";
 import { ProtectedRoute } from "@/features/auth/ProtectedRoute";
 import { AppLayout } from "@/layouts/AppLayout";
+import { HomeRedirect } from "@/features/auth/HomeRedirect";
+import { NotFoundPage } from "@/features/system/SystemStatePages";
 
 const CustomersPage = lazy(() =>
   import("@/features/customers/CustomersPage").then((module) => ({
@@ -35,7 +37,11 @@ const DesignOrderEditPage = lazy(() => import("@/features/design-orders/DesignOr
 const PaymentsPage = lazy(() => import("@/features/payments/PaymentsPage").then((module) => ({ default: module.PaymentsPage })));
 const ReportsPage = lazy(() => import("@/features/reports/ReportsPage").then((module) => ({ default: module.ReportsPage })));
 const SuppliersPage = lazy(() => import("@/features/suppliers/SuppliersPage").then((module) => ({ default: module.SuppliersPage })));
-const SupplierDetailPage = lazy(() => import("@/features/suppliers/SupplierDetailPage").then((module) => ({ default: module.SupplierDetailPage })));
+const BackupsPage = lazy(() => import("@/features/backups/BackupsPage").then((module) => ({ default: module.BackupsPage })));
+const UsersPage = lazy(() => import("@/features/users/UsersPage"));
+const AccountPage = lazy(() => import("@/features/auth/AccountPage"));
+  const SupplierDetailPage = lazy(() => import("@/features/suppliers/SupplierDetailPage").then((module) => ({ default: module.SupplierDetailPage })));
+  const SupplierEditPage = lazy(() => import("@/features/suppliers/SupplierEditPage").then((module) => ({ default: module.SupplierEditPage })));
 
 function lazyPage(page: ReactNode) {
   return <Suspense fallback={<div className="text-slate-500">پاڼه راځي…</div>}>{page}</Suspense>;
@@ -48,8 +54,8 @@ export const router = createBrowserRouter([
     children: [{
       element: <AppLayout />,
       children: [
-        { index: true, element: <Navigate to="/dashboard" replace /> },
-        { path: "dashboard", element: <DashboardPage /> },
+        { index: true, element: <HomeRedirect /> },
+        { element: <PermissionRoute permission="view_reports" />, children: [{ path: "dashboard", element: <DashboardPage /> }] },
         {
           element: <PermissionRoute permission="manage_customers" />,
           children: [
@@ -73,10 +79,15 @@ export const router = createBrowserRouter([
         { element: <PermissionRoute permission="manage_expenses" />, children: [
           { path: "suppliers", element: lazyPage(<SuppliersPage />) },
           { path: "suppliers/:supplierId", element: lazyPage(<SupplierDetailPage />) },
+          { path: "suppliers/:supplierId/edit", element: lazyPage(<SupplierEditPage />) },
         ] },
         { element: <PermissionRoute permission="view_reports" />, children: [{ path: "reports", element: lazyPage(<ReportsPage />) }] },
+        { element: <PermissionRoute permission="manage_backups" />, children: [{ path: "backups", element: lazyPage(<BackupsPage />) }] },
+        { element: <PermissionRoute permission="manage_users" />, children: [{ path: "users", element: lazyPage(<UsersPage />) }] },
+        { path: "account", element: lazyPage(<AccountPage />) },
+        { path: "*", element: <NotFoundPage /> },
       ],
     }],
   },
-  { path: "*", element: <Navigate to="/dashboard" replace /> },
+  { path: "*", element: <Navigate to="/" replace /> },
 ]);

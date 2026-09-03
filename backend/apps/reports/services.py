@@ -12,10 +12,23 @@ from apps.daily_journal.models import (
     PayableAccount,
     PayableRepayment,
 )
+from apps.daily_journal.services import calculate_cash_finances
 from apps.design_orders.models import DesignOrder, DesignOrderPayment, DesignOrderStatus
 from apps.suppliers.models import Supplier, SupplierTransaction
 
 ZERO = Decimal("0.00")
+
+EXPENSE_CLASSIFICATION = {
+    "DIAMONDS": ("machine", "د ماشین اړوند مصارف", "ډایان"),
+    "MATERIALS": ("machine", "د ماشین اړوند مصارف", "بورډ / تخته"),
+    "MAINTENANCE": ("machine", "د ماشین اړوند مصارف", "نور ماشین اړوند مصارف"),
+    "FOOD_STAFF": ("daily", "خوراکي او ورځني مصارف", "خوراکي او ورځني مصارف"),
+}
+GROUP_LABELS = {
+    "machine": "د ماشین اړوند مصارف",
+    "daily": "خوراکي او ورځني مصارف",
+    "other": "نور مصارف",
+}
 
 
 def money(value):
@@ -24,6 +37,45 @@ def money(value):
 
 def total(queryset, field="amount"):
     return queryset.aggregate(value=Sum(field))["value"] or ZERO
+
+
+def expense_breakdown(expenses, expense_total):
+    category_labels = dict(Expense._meta.get_field("category").choices)
+    category_totals = expenses.values("category").annotate(amount=Sum("amount")).order_by(
+        "category"
+    )
+    rows = []
+    group_totals = defaultdict(lambda: ZERO)
+    for item in category_totals:
+        category = item["category"]
+        amount = item["amount"] or ZERO
+        group, group_label, subcategory = EXPENSE_CLASSIFICATION.get(
+            category,
+            ("other", GROUP_LABELS["other"], category_labels.get(category, category)),
+        )
+        group_totals[group] += amount
+        percentage = (
+            (amount / expense_total * Decimal("100")).quantize(Decimal("0.1"))
+            if expense_total
+            else ZERO
+        )
+        rows.append(
+            {
+                "group": group,
+                "group_label": group_label,
+                "subcategory": subcategory,
+                "amount": money(amount),
+                "percentage": f"{percentage:.1f}",
+            }
+        )
+    return {
+        "total": money(expense_total),
+        "groups": [
+            {"key": key, "label": label, "total": money(group_totals[key])}
+            for key, label in GROUP_LABELS.items()
+        ],
+        "rows": rows,
+    }
 
 
 def filter_orders(queryset, filters):
@@ -134,11 +186,6 @@ def build_report(filters):
         Expense.objects.none()
         if customer_report
         else Expense.objects.filter(expense_date__range=(start, end))
-    )
-    loans_given = (
-        MoneyLoan.objects.none()
-        if customer_report
-        else MoneyLoan.objects.filter(loan_date__range=(start, end))
     )
     loan_repayments = (
         MoneyLoanRepayment.objects.none()
@@ -259,9 +306,10 @@ def build_report(filters):
     customer_debt = sum((row["remaining"] for row in customer_balances.values()), ZERO)
     shop_payables = sum((Decimal(row["remaining_balance"]) for row in payable_rows), ZERO)
     sales = total(period_orders, "total_amount")
-    loan_given_total, loan_return_total = total(loans_given), total(loan_repayments)
     payable_return_total = total(payable_repayments)
     supplier_payment_total = total(supplier_payments)
+    cash_finances = calculate_cash_finances(start, end)
+    expenses_report = expense_breakdown(expenses, expense_total)
     return {
         "filter_options": {
             "customers": [
@@ -295,14 +343,13 @@ def build_report(filters):
             "loan_balances": money(loan_balance),
             "cash_movement": money(
                 received
-                - expense_total
-                - loan_given_total
-                + loan_return_total
-                - payable_return_total
-                - supplier_payment_total
+                if customer_report
+                else cash_finances["closing_balance"] - cash_finances["opening_balance"]
             ),
+            "cash_balance": money(cash_finances["closing_balance"]),
         },
         "customers": customer_rows,
+        "expenses": expenses_report,
         "debts": {
             "customer_receivables": [
                 {

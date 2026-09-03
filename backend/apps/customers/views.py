@@ -1,16 +1,16 @@
-from datetime import datetime, time
 from decimal import Decimal
 
+from django.core.exceptions import ValidationError as DjangoValidationError
 from drf_spectacular.utils import extend_schema
-from django.utils import timezone
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
+from rest_framework.exceptions import ValidationError
 from rest_framework.response import Response
 
+from apps.accounting.models import EntryType
+from apps.accounting.services import get_customer_balance, get_customer_ledger
 from apps.accounts.authorization import Capability
 from apps.accounts.permissions import HasRequiredCapability
-from apps.accounting.models import CustomerLedgerEntry, EntryType
-from apps.accounting.services import create_ledger_entry, get_customer_balance, get_customer_ledger
 
 from . import selectors, services
 from .financial_services import get_customer_statement
@@ -67,10 +67,11 @@ class CustomerViewSet(viewsets.ModelViewSet):
                 {
                     "date": entry_date,
                     "type": "Order" if entry.entry_type == EntryType.DEBIT else "Payment",
-                    "description": entry.description or (
-                        "Design order" if entry.entry_type == EntryType.DEBIT else "Payment"
+                    "description": entry.description
+                    or ("Design order" if entry.entry_type == EntryType.DEBIT else "Payment"),
+                    "amount": str(
+                        entry.amount if entry.entry_type == EntryType.DEBIT else -entry.amount
                     ),
-                    "amount": str(entry.amount if entry.entry_type == EntryType.DEBIT else -entry.amount),
                     "balance_after_transaction": str(running_balance),
                     "source_type": entry.source_type,
                     "source_id": entry.source_id,
@@ -82,7 +83,11 @@ class CustomerViewSet(viewsets.ModelViewSet):
             Decimal("0.00"),
         )
         total_paid_amount = sum(
-            (Decimal(entry["amount"]) for entry in serialized_entries if entry["type"] == "Payment"),
+            (
+                Decimal(entry["amount"])
+                for entry in serialized_entries
+                if entry["type"] == "Payment"
+            ),
             Decimal("0.00"),
         )
         ledger_payload = {
@@ -101,20 +106,16 @@ class CustomerViewSet(viewsets.ModelViewSet):
         serializer = CustomerPaymentSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         payment_date = serializer.validated_data.get("payment_date")
-        posted_at = (
-            timezone.make_aware(datetime.combine(payment_date, time.min))
-            if payment_date
-            else None
-        )
-        entry = create_ledger_entry(
-            customer=customer,
-            entry_type=EntryType.CREDIT,
-            amount=serializer.validated_data["amount"],
-            description=serializer.validated_data.get("description", "Payment received"),
-            source_type="customer_payment",
-            created_by=request.user,
-            posted_at=posted_at,
-        )
+        try:
+            entry = services.record_customer_payment(
+                customer=customer,
+                amount=serializer.validated_data["amount"],
+                description=serializer.validated_data.get("description", "Payment received"),
+                recorded_by=request.user,
+                payment_date=payment_date,
+            )
+        except DjangoValidationError as exc:
+            raise ValidationError(exc.message_dict) from exc
         return Response(
             {
                 "data": {
@@ -133,9 +134,7 @@ class CustomerViewSet(viewsets.ModelViewSet):
             balance = get_customer_balance(customer=customer)
             if balance > 0:
                 entries = get_customer_ledger(customer=customer)
-                last_transaction = max(
-                    (entry.posted_at for entry in entries), default=None
-                )
+                last_transaction = max((entry.posted_at for entry in entries), default=None)
                 debtors.append(
                     {
                         "id": str(customer.id),

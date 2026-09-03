@@ -3,6 +3,8 @@ export interface JournalSummary {
   opening_balance: string;
   customer_payments: string;
   other_income: string;
+  cash_adjustments: string;
+  money_received: string;
   loan_returns: string;
   loan_given: string;
   payable_payments: string;
@@ -87,6 +89,7 @@ export interface PayableAccount {
   id: string;
   person_name: string;
   debt_type: string;
+  origin: "CREDIT_PURCHASE" | "CASH_LOAN";
   amount: string;
   paid_amount: string;
   remaining_balance: string;
@@ -115,6 +118,7 @@ export interface DailyClosing {
   opening_balance: string;
   customer_payments: string;
   other_income: string;
+  money_received: string;
   loan_returns: string;
   loan_given: string;
   payable_payments: string;
@@ -123,5 +127,16 @@ export interface DailyClosing {
   total_expenses: string;
   net_profit: string;
   closed_by_name: string;
+  created_at: string;
+}
+
+export interface CashReconciliation {
+  id: string;
+  reconciliation_date: string;
+  system_balance: string;
+  actual_balance: string;
+  difference: string;
+  reason: string;
+  created_by_name: string;
   created_at: string;
 }

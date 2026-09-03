@@ -32,3 +32,15 @@ Thumbs.db
 
 # Logs
 *.log
+
+# Runtime backups and generated archives
+backend/backups/
+backend/test-backups-runtime/
+backend/.pytest-backup-temp/
+LaserFlow-Frontend.zip
+
+# Generated visual/PDF verification artifacts
+frontend/.chrome-pdf-check/
+frontend/visual-report*.tmp.*
+frontend/visual-report-page-*.tmp.png
+frontend/tests/report-pdf-visual.tmp.test.ts

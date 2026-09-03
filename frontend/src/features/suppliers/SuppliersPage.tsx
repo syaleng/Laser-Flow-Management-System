@@ -24,10 +24,10 @@ export function SuppliersPage() {
     setForm({ name: "", phone: "", description: "" });
   };
 
-  return <section dir="rtl" className="text-right">
+  return <section dir="rtl" className="detail-page list-page text-right">
     <PageHeader eyebrow="مالي مدیریت" title="عرضه کوونکو ته پاتې پیسې" description="هغه پیسې چې دوکان یې عرضه کوونکو ته باید ورکړي" />
     <div className="grid gap-6 xl:grid-cols-[1.2fr_0.8fr]">
-      <article className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+      <article className="supplier-list-panel rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"><div><h2 className="text-lg font-bold">عرضه کوونکي</h2><p className="mt-1 text-xs text-slate-500">نوم، موبایل او پاتې ورکړه په یوه ځای کې</p></div><label className="relative block sm:w-72"><Search className="pointer-events-none absolute right-3 top-1/2 size-4 -translate-y-1/2 text-slate-400" /><input aria-label="عرضه کوونکي لټون" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="په نوم یا موبایل لټون" className="h-11 w-full rounded-xl border border-slate-200 bg-slate-50 pr-10 pl-3 text-sm outline-none focus:border-brand-500 focus:bg-white focus:ring-2 focus:ring-brand-100" /></label></div>
         {suppliers.isLoading && <p className="mt-4 text-slate-500">حسابونه بارېږي...</p>}
         {suppliers.isError && <p role="alert" className="mt-4 text-red-700">حسابونه بار نه شول.</p>}

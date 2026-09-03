@@ -5,16 +5,11 @@ import { useState } from "react";
 
 import { Button } from "@/components/ui/Button";
 import { ApiError } from "@/lib/api-client";
-import { formatAfn } from "@/lib/format";
+import { formatAfn, formatDate } from "@/lib/format";
 import { CustomerDesignOrdersPanel } from "@/features/design-orders/CustomerDesignOrdersPanel";
 
 import { CustomerPaymentForm } from "./CustomerPaymentForm";
 import { useCreateCustomerPayment, useCustomer, useCustomerLedger, useCustomerStatement, useSetCustomerArchived } from "./hooks";
-
-function formatDate(value: string | null): string {
-  if (!value) return "نه دي ثبت شوي";
-  return new Intl.DateTimeFormat(undefined, { dateStyle: "medium", timeStyle: "short" }).format(new Date(value));
-}
 
 const money = formatAfn;
 const paymentStatusLabels: Record<string, string> = {
@@ -58,7 +53,7 @@ export function CustomerDetailPage() {
   };
 
   return (
-    <section>
+    <section className="detail-page">
       <Link to="/customers" className="mb-5 inline-flex items-center gap-2 text-sm font-semibold text-slate-600 hover:text-slate-900">
         <ArrowLeft className="size-4" /> د مشتریانو لېست ته بېرته
       </Link>
@@ -74,7 +69,7 @@ export function CustomerDetailPage() {
           <p className="mt-2 text-sm text-slate-500">{data.customer_code}</p>
         </div>
         <div className="flex flex-wrap gap-3">
-          <Button onClick={() => setShowPaymentForm((visible) => !visible)}>
+          <Button onClick={() => setShowPaymentForm((visible) => !visible)} disabled={Number(ledger.data?.remaining_debt_balance ?? data.current_debt) <= 0}>
             <CreditCard className="mr-2 size-4" /> تادیه اضافه کول
           </Button>
           <button type="button" onClick={() => window.print()} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-slate-300 bg-white px-4 font-semibold text-slate-700 hover:bg-slate-50 print:hidden">
@@ -105,6 +100,7 @@ export function CustomerDetailPage() {
           onSubmit={submitPayment}
           onCancel={() => setShowPaymentForm(false)}
           serverError={paymentMutation.error instanceof ApiError ? paymentMutation.error.message : null}
+          maxAmount={Math.max(0, Number(ledger.data?.remaining_debt_balance ?? data.current_debt))}
         />
       )}
 
@@ -116,8 +112,8 @@ export function CustomerDetailPage() {
               ["د فرمایشونو ټول مقدار", money(ledger.data.total_orders_amount), ReceiptText, "bg-blue-50 text-blue-600"],
               ["ټولې ورکړې", money(ledger.data.total_paid_amount), CreditCard, "bg-emerald-50 text-emerald-600"],
               ["پاتې حساب", money(ledger.data.remaining_debt_balance), WalletCards, Number(ledger.data.remaining_debt_balance) > 0 ? "bg-rose-50 text-rose-600" : "bg-emerald-50 text-emerald-600"],
-            ] as [string, string, LucideIcon, string][]).map(([title, value, Icon, color]) => (
-              <article key={title} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm"><div className={`mb-4 grid size-10 place-items-center rounded-xl ${color}`}><Icon className="size-5" /></div><p className="text-sm text-slate-500">{title}</p><p dir="ltr" className="mt-2 text-xl font-bold text-slate-950">{value}</p></article>
+            ] as [string, string, LucideIcon, string][]).map(([title, value, Icon, color], index) => (
+              <article key={title} className={`customer-summary-card rounded-2xl border p-5 shadow-sm ${index === 0 ? "border-blue-200 bg-blue-50/70" : index === 1 ? "border-emerald-200 bg-emerald-50/70" : "border-rose-200 bg-rose-50/70"}`}><div className={`mb-4 grid size-11 place-items-center rounded-xl ring-4 ring-white/70 ${color}`}><Icon className="size-5" /></div><p className="text-sm font-semibold text-slate-600">{title}</p><p dir="ltr" className="mt-2 text-2xl font-extrabold tracking-tight text-slate-950">{value}</p></article>
             ))}
           </div>
         ) : ledger.isLoading ? (

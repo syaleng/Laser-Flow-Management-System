@@ -10,7 +10,7 @@ vi.mock("@/features/suppliers/hooks", () => ({
   useSuppliers: () => useSuppliers(),
   useSupplier: () => useSupplier(),
   useSupplierTransactions: () => useSupplierTransactions(),
-  useSupplierMutations: () => ({ create: { mutateAsync: vi.fn() }, transaction: { mutateAsync } }),
+  useSupplierMutations: () => ({ create: { mutateAsync: vi.fn() }, transaction: { mutateAsync }, voidTransaction: { mutateAsync: vi.fn(), isPending: false } }),
 }));
 
 import { SupplierDetailPage, SupplierTransactionForm } from "@/features/suppliers/SupplierDetailPage";

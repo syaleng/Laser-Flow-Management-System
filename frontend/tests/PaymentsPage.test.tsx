@@ -23,7 +23,7 @@ describe("PaymentsPage", () => {
     expect(screen.getByRole("heading", { name: "تادیات" })).toBeInTheDocument();
     expect(screen.getByText("احمد")).toBeInTheDocument();
     expect(screen.getAllByText("500.00 AFN")).toHaveLength(2);
-    expect(screen.getByText(new Date("2026-08-20T00:00:00").toLocaleDateString("ps-AF"))).toBeInTheDocument();
+    expect(screen.getByText("2026-08-20")).toBeInTheDocument();
   });
 
   it("renders loading, empty, and error states", () => {

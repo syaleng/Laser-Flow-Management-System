@@ -16,6 +16,7 @@ from .authorization import Capability
 from .models import LoginActivity, User
 from .permissions import HasRequiredCapability
 from .serializers import (
+    AdminResetPasswordSerializer,
     ChangePasswordSerializer,
     LoginSerializer,
     UserCreateSerializer,
@@ -44,7 +45,16 @@ class LoginView(TokenObtainPairView):
 
     def post(self, request, *args, **kwargs):
         username = str(request.data.get("email", "")).strip().lower()[:254]
-        serializer = self.get_serializer(data=request.data)
+        login_data = request.data.copy()
+        if username and "@" not in username:
+            matches = [
+                user
+                for user in User.objects.filter(email__istartswith=f"{username}@").only("email")
+                if user.email.partition("@")[0].lower() == username
+            ]
+            if len(matches) == 1:
+                login_data["email"] = matches[0].email
+        serializer = self.get_serializer(data=login_data)
         try:
             serializer.is_valid(raise_exception=True)
         except ValidationError:
@@ -52,7 +62,9 @@ class LoginView(TokenObtainPairView):
             self._record_activity(request, username, attempted_user, successful=False)
             raise
         payload = serializer.validated_data
-        authenticated_user = User.objects.only("id", "role").get(email__iexact=username)
+        authenticated_user = User.objects.only("id", "role").get(
+            email__iexact=serializer.validated_data["user"]["email"]
+        )
         self._record_activity(request, username, authenticated_user, successful=True)
         response = Response(
             {"data": {"access": payload["access"], "user": payload["user"]}},
@@ -157,3 +169,17 @@ class UserViewSet(viewsets.ModelViewSet):
         except DjangoValidationError as exc:
             raise ValidationError(exc.message_dict) from exc
         return Response({"data": UserSerializer(user).data})
+
+    @action(detail=True, methods=["post"], url_path="reset-password")
+    def reset_password(self, request, pk=None):
+        user = self.get_object()
+        serializer = AdminResetPasswordSerializer(
+            data=request.data,
+            context={"user": user},
+        )
+        serializer.is_valid(raise_exception=True)
+        services.change_password(
+            user=user,
+            new_password=serializer.validated_data["new_password"],
+        )
+        return Response(status=status.HTTP_204_NO_CONTENT)

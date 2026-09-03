@@ -1,6 +1,20 @@
 import { apiClient } from "@/lib/api-client";
 
-import type { DailyClosing, Expense, JournalReport, JournalSummary, MoneyLoan, PayableAccount, Repayment, PaymentMethod } from "./types";
+import type { CashReconciliation, DailyClosing, Expense, JournalReport, JournalSummary, MoneyLoan, PayableAccount, Repayment, PaymentMethod } from "./types";
+
+export async function getCashReconciliations(date: string): Promise<CashReconciliation[]> {
+  const { data } = await apiClient.get<{ data: CashReconciliation[] }>("/journal/cash-reconciliations/", { params: { date, page_size: 100 } });
+  return data.data;
+}
+
+export async function createCashReconciliation(input: { reconciliation_date: string; actual_balance: number; reason: string }): Promise<CashReconciliation> {
+  const { data } = await apiClient.post<{ data: CashReconciliation }>("/journal/cash-reconciliations/", input);
+  return data.data;
+}
+
+export async function voidCashReconciliation(id: string, reason: string): Promise<void> {
+  await apiClient.post(`/journal/cash-reconciliations/${id}/void/`, { reason });
+}
 
 export async function getJournalSummary(date: string): Promise<JournalSummary> {
   const { data } = await apiClient.get<{ data: JournalSummary }>("/journal/summary/", { params: { date } });
@@ -20,6 +34,15 @@ export async function getExpenses(date: string): Promise<Expense[]> {
 export async function createExpense(input: { category: string; amount: number; expense_date: string; note: string }): Promise<Expense> {
   const { data } = await apiClient.post<{ data: Expense }>("/journal/expenses/", input);
   return data.data;
+}
+
+export async function updateExpense(id: string, input: Partial<Pick<Expense, "category" | "expense_date" | "note">> & { amount?: number }): Promise<Expense> {
+  const { data } = await apiClient.patch<{ data: Expense }>(`/journal/expenses/${id}/`, input);
+  return data.data;
+}
+
+export async function voidExpense(id: string, reason: string): Promise<void> {
+  await apiClient.post(`/journal/expenses/${id}/void/`, { reason });
 }
 
 export async function getLoans(date: string): Promise<MoneyLoan[]> {
@@ -42,8 +65,24 @@ export async function createLoan(input: { person_name: string; debt_type: string
   return data.data;
 }
 
+export async function updateLoan(id: string, input: Partial<Pick<MoneyLoan, "person_name" | "debt_type" | "purpose" | "loan_date" | "note">> & { amount?: number }): Promise<MoneyLoan> {
+  const { data } = await apiClient.patch<{ data: MoneyLoan }>(`/journal/loans/${id}/`, input);
+  return data.data;
+}
+
+export async function voidLoan(id: string, reason: string): Promise<void> {
+  await apiClient.post(`/journal/loans/${id}/void/`, { reason });
+}
+
+export async function voidLoanRepayment(id: string, repaymentId: string, reason: string): Promise<MoneyLoan> {
+  const { data } = await apiClient.post<{ data: MoneyLoan }>(`/journal/loans/${id}/repayments/${repaymentId}/void/`, { reason });
+  return data.data;
+}
+
 export async function getPayables(date: string): Promise<PayableAccount[]> {
-  const { data } = await apiClient.get<{ data: PayableAccount[] }>("/journal/payables/", { params: { date, page_size: 100 } });
+  void date;
+  // Show all open accounts so older unpaid balances can be settled from today's journal.
+  const { data } = await apiClient.get<{ data: PayableAccount[] }>("/journal/payables/", { params: { page_size: 100 } });
   return data.data;
 }
 
@@ -57,8 +96,22 @@ export async function recordPayableRepayment(id: string, input: { amount: number
   return data.data;
 }
 
-export async function createPayable(input: { person_name: string; debt_type: string; amount: number; paid_amount: number; payable_date: string; purpose: string; note: string }): Promise<PayableAccount> {
+export async function createPayable(input: { person_name: string; debt_type: string; origin: "CREDIT_PURCHASE" | "CASH_LOAN"; amount: number; paid_amount: number; payable_date: string; purpose: string; note: string }): Promise<PayableAccount> {
   const { data } = await apiClient.post<{ data: PayableAccount }>("/journal/payables/", input);
+  return data.data;
+}
+
+export async function updatePayable(id: string, input: Partial<Pick<PayableAccount, "person_name" | "debt_type" | "origin" | "payable_date" | "purpose" | "note">> & { amount?: number }): Promise<PayableAccount> {
+  const { data } = await apiClient.patch<{ data: PayableAccount }>(`/journal/payables/${id}/`, input);
+  return data.data;
+}
+
+export async function voidPayable(id: string, reason: string): Promise<void> {
+  await apiClient.post(`/journal/payables/${id}/void/`, { reason });
+}
+
+export async function voidPayableRepayment(id: string, repaymentId: string, reason: string): Promise<PayableAccount> {
+  const { data } = await apiClient.post<{ data: PayableAccount }>(`/journal/payables/${id}/repayments/${repaymentId}/void/`, { reason });
   return data.data;
 }
 

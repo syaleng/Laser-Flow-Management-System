@@ -5,7 +5,12 @@ export interface ReportFilters { period: ReportPeriod; date?: string; start_date
 export interface ReportData {
   filter_options: { customers: Array<{ id: string; customer_code: string; full_name: string }> };
   filters: ReportFilters & { start_date: string; end_date: string };
-  summary: { total_orders: number; total_sales: string; received_payments: string; expenses: string; supplier_payments: string; profit_loss: string; customer_receivables: string; shop_payables: string; loan_balances: string; cash_movement: string };
+  summary: { total_orders: number; total_sales: string; received_payments: string; expenses: string; supplier_payments: string; profit_loss: string; customer_receivables: string; shop_payables: string; loan_balances: string; cash_movement: string; cash_balance: string };
+  expenses: {
+    total: string;
+    groups: Array<{ key: "machine" | "daily" | "other"; label: string; total: string }>;
+    rows: Array<{ group: "machine" | "daily" | "other"; group_label: string; subcategory: string; amount: string; percentage: string }>;
+  };
   customers: Array<{ customer_id: string; customer_code: string; customer_name: string; total_orders: number; total_order_value: string; total_paid: string; remaining_balance: string; payment_history: Array<{ date: string; amount: string; order_number: string; recorded_by: string; note: string }> }>;
   debts: {
     customer_receivables: Array<{ customer_id: string; customer_name: string; remaining_balance: string }>;

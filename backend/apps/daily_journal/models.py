@@ -37,6 +37,11 @@ class PaymentMethod(models.TextChoices):
     OTHER = "OTHER", "Other"
 
 
+class PayableOrigin(models.TextChoices):
+    CREDIT_PURCHASE = "CREDIT_PURCHASE", "Credit purchase (no cash received)"
+    CASH_LOAN = "CASH_LOAN", "Money received as a loan"
+
+
 class Expense(BaseModel):
     category = models.CharField(max_length=30, choices=ExpenseCategory.choices)
     amount = models.DecimalField(
@@ -104,6 +109,7 @@ class DailyClosing(BaseModel):
         max_digits=14, decimal_places=2, default=Decimal("0.00")
     )
     other_income = models.DecimalField(max_digits=14, decimal_places=2, default=Decimal("0.00"))
+    money_received = models.DecimalField(max_digits=14, decimal_places=2, default=Decimal("0.00"))
     loan_returns = models.DecimalField(max_digits=14, decimal_places=2, default=Decimal("0.00"))
     loan_given = models.DecimalField(max_digits=14, decimal_places=2, default=Decimal("0.00"))
     payable_payments = models.DecimalField(max_digits=14, decimal_places=2, default=Decimal("0.00"))
@@ -135,9 +141,37 @@ class JournalActivity(BaseModel):
         ]
 
 
+class CashReconciliation(BaseModel):
+    reconciliation_date = models.DateField(db_index=True)
+    system_balance = models.DecimalField(max_digits=14, decimal_places=2)
+    actual_balance = models.DecimalField(max_digits=14, decimal_places=2)
+    difference = models.DecimalField(max_digits=14, decimal_places=2)
+    reason = models.CharField(max_length=500)
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        related_name="cash_reconciliations",
+    )
+
+    class Meta:
+        ordering = ["-reconciliation_date", "-created_at"]
+        indexes = [
+            models.Index(
+                fields=["reconciliation_date", "-created_at"],
+                name="cash_reconcile_date_idx",
+            )
+        ]
+
+
 class PayableAccount(BaseModel):
     person_name = models.CharField(max_length=200)
     debt_type = models.CharField(max_length=30, choices=DebtType.choices, default=DebtType.PERSONAL)
+    origin = models.CharField(
+        max_length=20,
+        choices=PayableOrigin.choices,
+        default=PayableOrigin.CREDIT_PURCHASE,
+        db_index=True,
+    )
     amount = models.DecimalField(
         max_digits=14, decimal_places=2, validators=[MinValueValidator(Decimal("0.01"))]
     )

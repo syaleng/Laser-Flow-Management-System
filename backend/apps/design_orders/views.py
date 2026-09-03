@@ -2,6 +2,7 @@ from urllib.parse import quote
 
 from django.core.exceptions import ValidationError as DjangoValidationError
 from django.db.models import Q
+from django.shortcuts import get_object_or_404
 from drf_spectacular.utils import extend_schema
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
@@ -27,6 +28,7 @@ from .serializers import (
     RecordPaymentSerializer,
     StatusHistorySerializer,
     StatusTransitionSerializer,
+    VoidPaymentSerializer,
 )
 
 
@@ -166,6 +168,25 @@ class DesignOrderViewSet(viewsets.ModelViewSet):
             status=status.HTTP_201_CREATED,
         )
 
+    @extend_schema(request=VoidPaymentSerializer, responses={200: DesignOrderSerializer})
+    @action(detail=True, methods=["post"], url_path=r"payments/(?P<payment_id>[^/.]+)/void")
+    def void_payment(self, request, pk=None, payment_id=None):
+        if not request.user.is_superuser and request.user.role not in {
+            UserRole.OWNER,
+            UserRole.MANAGER,
+        }:
+            raise PermissionDenied("یوازې مالک یا مدیر تادیه لغوه کولی شي.")
+        serializer = VoidPaymentSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        order = self.get_object()
+        payment = get_object_or_404(order.payment_history, pk=payment_id)
+        order = services.void_design_order_payment(
+            payment=payment,
+            voided_by=request.user,
+            reason=serializer.validated_data["reason"],
+        )
+        return Response({"data": DesignOrderSerializer(order, context={"request": request}).data})
+
     @action(detail=False, methods=["get"], url_path="overdue-reminders")
     def overdue_reminders(self, request):
         if not request.user.is_superuser and request.user.role not in {
@@ -182,7 +203,7 @@ class DesignOrderViewSet(viewsets.ModelViewSet):
                 f"قدرمن {customer.full_name}، هیله ده روغ او جوړ یاست. "
                 f"ستاسو د فرمایش {order.order_number} له حساب څخه "
                 f"{remaining:,.2f} افغانۍ پاتې دي. مهرباني وکړئ په مناسب وخت کې "
-                "پاتې حساب تصفیه کړئ. مننه، د لیزر ډیزاین مرکز."
+                "پاتې حساب تصفیه کړئ. مننه، بلال احمدزی د لیزر ډیزاین مرکز."
             )
             whatsapp_url = None
             if customer.whatsapp_consent and customer.whatsapp_number:
@@ -198,6 +219,7 @@ class DesignOrderViewSet(viewsets.ModelViewSet):
                     "whatsapp_allowed": bool(
                         customer.whatsapp_consent and customer.whatsapp_number
                     ),
+                    "whatsapp_number": customer.whatsapp_number,
                     "whatsapp_url": whatsapp_url,
                     "message": message,
                 }

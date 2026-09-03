@@ -16,7 +16,7 @@ export const designOrderSchema = z
     customer_id: z.string().uuid("مشتري وټاکئ."),
     design_name: z.string().trim().max(200),
     design_description: z.string().trim().max(3000),
-    cut_quantity: z.number().int().positive("شمېر باید له صفر څخه زیات وي."),
+    cut_quantity: z.number().int().positive("د پرېکولو شمېر باید له صفر څخه زیات وي."),
     unit_price: z.number().positive("بیه باید له صفر څخه زیاته وي."),
     material_quantity: z.number().int().positive("د ډایانو شمېر باید له صفر څخه زیات وي."),
     payment_status: z.enum(["CASH", "PARTIAL", "CREDIT", "FULLY_PAID"]),
@@ -34,14 +34,14 @@ export const designOrderSchema = z
     path: ["expected_delivery_date"],
     message: "د سپارلو نېټه د فرمایش له نېټې مخکې نه شي کېدای.",
   })
-  .refine((data) => data.paid_amount <= data.cut_quantity * data.unit_price, {
+  .refine((data) => data.paid_amount <= data.material_quantity * data.unit_price, {
     path: ["paid_amount"],
     message: "ورکړل شوې پیسې له ټول مقدار څخه زیاتېدای نه شي.",
   })
   .refine(
     (data) =>
       data.payment_status ===
-      calculatePaymentStatus(data.cut_quantity * data.unit_price, data.paid_amount),
+      calculatePaymentStatus(data.material_quantity * data.unit_price, data.paid_amount),
     {
       path: ["payment_status"],
       message: "ټولې پیسې ترلاسه شوې دي، د تادیې حالت بدلول امکان نه لري.",

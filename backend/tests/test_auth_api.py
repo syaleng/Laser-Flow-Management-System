@@ -40,6 +40,22 @@ def test_login_sets_refresh_cookie_and_returns_access_token(client, owner):
 
 
 @pytest.mark.django_db
+def test_login_accepts_unique_email_username(client):
+    User.objects.create_user(
+        email="bilal@laserflow.local",
+        password="bilal123",
+        full_name="Bilal",
+        role=UserRole.OWNER,
+    )
+    response = client.post(
+        reverse("accounts:login"),
+        {"email": "bilal", "password": "bilal123"},
+    )
+    assert response.status_code == 200
+    assert response.data["data"]["user"]["email"] == "bilal@laserflow.local"
+
+
+@pytest.mark.django_db
 def test_failed_login_is_recorded_without_password(client, owner):
     response = client.post(
         reverse("accounts:login"),
@@ -171,6 +187,24 @@ def test_owner_cannot_deactivate_self(client, owner):
     assert response.status_code == 400
     owner.refresh_from_db()
     assert owner.is_active is True
+
+
+@pytest.mark.django_db
+def test_owner_can_reset_another_users_password(client, owner):
+    operator = User.objects.create_user(
+        email="operator@example.com",
+        password="Strong-Old-Password-123!",
+        full_name="Operator",
+        role=UserRole.OPERATOR,
+    )
+    client.force_authenticate(owner)
+    response = client.post(
+        reverse("user-reset-password", kwargs={"pk": operator.pk}),
+        {"new_password": "Strong-New-Password-456!"},
+    )
+    assert response.status_code == 204
+    operator.refresh_from_db()
+    assert operator.check_password("Strong-New-Password-456!")
 
 
 def test_role_capabilities_are_explicit():

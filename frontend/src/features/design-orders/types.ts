@@ -124,6 +124,7 @@ export interface OverdueDebtReminder {
   remaining_amount: string;
   payment_due_date: string;
   whatsapp_allowed: boolean;
+  whatsapp_number: string;
   whatsapp_url: string | null;
   message: string;
 }

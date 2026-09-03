@@ -9,12 +9,15 @@ from apps.design_orders.models import DesignOrder, DesignOrderPayment, DesignOrd
 from apps.suppliers.models import SupplierTransaction
 
 from .models import (
+    CashReconciliation,
+    DailyClosing,
     Expense,
     JournalActivity,
     LoanStatus,
     MoneyLoan,
     MoneyLoanRepayment,
     PayableAccount,
+    PayableOrigin,
     PayableRepayment,
 )
 
@@ -37,8 +40,18 @@ def _cash_components(start, end):
     )
     expenses = _dated(Expense.objects.all(), "expense_date", start, end)
     loans = _dated(MoneyLoan.objects.all(), "loan_date", start, end)
-    loan_returns = _dated(MoneyLoanRepayment.objects.all(), "payment_date", start, end)
-    payable_payments = _dated(PayableRepayment.objects.all(), "payment_date", start, end)
+    loan_returns = _dated(
+        MoneyLoanRepayment.objects.filter(payment_method="CASH"), "payment_date", start, end
+    )
+    payable_payments = _dated(
+        PayableRepayment.objects.filter(payment_method="CASH"), "payment_date", start, end
+    )
+    money_received = _dated(
+        PayableAccount.objects.filter(origin=PayableOrigin.CASH_LOAN),
+        "payable_date",
+        start,
+        end,
+    )
     supplier_payments = _dated(
         SupplierTransaction.objects.filter(
             transaction_type=SupplierTransaction.TransactionType.CREDIT
@@ -47,35 +60,55 @@ def _cash_components(start, end):
         start,
         end,
     )
+    reconciliations = _dated(CashReconciliation.objects.all(), "reconciliation_date", start, end)
     return {
         "customer_payments": _total(payments),
         "expenses": _total(expenses),
         "loan_given": _total(loans),
         "loan_returns": _total(loan_returns),
         "other_income": ZERO,
+        "money_received": _total(money_received),
         "payable_payments": _total(payable_payments) + _total(supplier_payments),
+        "cash_adjustments": _total(reconciliations, "difference"),
     }
 
 
-def calculate_cash_finances(start, end):
+def _opening_balance(start):
+    previous_closing = (
+        DailyClosing.objects.filter(closing_date__lt=start)
+        .order_by("-closing_date")
+        .values_list("closing_balance", flat=True)
+        .first()
+    )
+    if previous_closing is not None:
+        return previous_closing
+
     before = _cash_components(None, start - timedelta(days=1))
-    current = _cash_components(start, end)
-    opening = (
+    return (
         before["customer_payments"]
         + before["other_income"]
         + before["loan_returns"]
+        + before["money_received"]
         - before["expenses"]
         - before["loan_given"]
         - before["payable_payments"]
+        + before["cash_adjustments"]
     )
+
+
+def calculate_cash_finances(start, end):
+    current = _cash_components(start, end)
+    opening = _opening_balance(start)
     closing = (
         opening
         + current["customer_payments"]
         + current["other_income"]
         + current["loan_returns"]
+        + current["money_received"]
         - current["expenses"]
         - current["loan_given"]
         - current["payable_payments"]
+        + current["cash_adjustments"]
     )
     sales = _total(
         DesignOrder.objects.filter(order_date__range=(start, end)).exclude(
@@ -87,7 +120,12 @@ def calculate_cash_finances(start, end):
         **current,
         "opening_balance": opening,
         "closing_balance": closing,
-        "total_income": current["customer_payments"] + current["other_income"],
+        "total_income": (
+            current["customer_payments"]
+            + current["other_income"]
+            + current["loan_returns"]
+            + current["money_received"]
+        ),
         "total_expenses": current["expenses"],
         "sales": sales,
         "net_profit": sales - current["expenses"],
@@ -169,8 +207,8 @@ def build_transactions(start, end):
     )
     for item in payables:
         add(
-            "payable_created",
-            "non_cash",
+            "money_received" if item.origin == PayableOrigin.CASH_LOAN else "payable_created",
+            "in" if item.origin == PayableOrigin.CASH_LOAN else "non_cash",
             item.amount,
             item.payable_date,
             item.created_at,
@@ -201,6 +239,18 @@ def build_transactions(start, end):
             item.created_at,
             item.created_by,
             item.supplier.name,
+        )
+    for item in CashReconciliation.objects.filter(
+        reconciliation_date__range=(start, end)
+    ).select_related("created_by"):
+        add(
+            "cash_reconciliation",
+            "in" if item.difference >= ZERO else "out",
+            abs(item.difference),
+            item.reconciliation_date,
+            item.created_at,
+            item.created_by,
+            item.reason,
         )
     return sorted(transactions, key=lambda item: (item["date"], item["time"]), reverse=True)
 

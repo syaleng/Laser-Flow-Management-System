@@ -11,6 +11,7 @@ class Capability(StrEnum):
     MANAGE_PAYMENTS = "manage_payments"
     MANAGE_EXPENSES = "manage_expenses"
     VIEW_REPORTS = "view_reports"
+    MANAGE_BACKUPS = "manage_backups"
 
 
 ALL_CAPABILITIES = frozenset(Capability)

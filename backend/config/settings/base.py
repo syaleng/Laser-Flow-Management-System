@@ -98,6 +98,7 @@ STATIC_ROOT = BASE_DIR / "staticfiles"
 STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
 MEDIA_URL = "/media/"
 MEDIA_ROOT = BASE_DIR / "media"
+BACKUP_ROOT = BASE_DIR / "backups"
 DEFAULT_PAYMENT_TERMS_DAYS = env("DEFAULT_PAYMENT_TERMS_DAYS")
 MAX_DESIGN_UPLOAD_SIZE_MB = env("MAX_DESIGN_UPLOAD_SIZE_MB")
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"

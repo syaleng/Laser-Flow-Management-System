@@ -246,8 +246,9 @@ def test_realistic_ledger_reconciles_payments_statements_journal_dashboard_and_r
     assert Decimal(dashboard["cards"]["shop_payables"]) == Decimal("1550.00")
     assert Decimal(report["summary"]["shop_payables"]) == Decimal("1550.00")
     assert Decimal(journal["cash_balance"]) == Decimal(journal_report["cash_balance"])
-    assert Decimal(report["summary"]["cash_movement"]) == Decimal("-1150.00")
-    assert Decimal(journal["cash_balance"]) == Decimal("-1150.00")
+    # The bank-method loan return is not physical shop cash.
+    assert Decimal(report["summary"]["cash_movement"]) == Decimal("-1050.00")
+    assert Decimal(journal["cash_balance"]) == Decimal("-1050.00")
 
 
 @pytest.mark.django_db

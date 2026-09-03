@@ -75,3 +75,16 @@ def get_supplier_transactions(*, supplier: Supplier):
     return supplier.transactions.select_related("created_by").order_by(
         "transaction_date", "created_at"
     )
+
+
+@transaction.atomic
+def void_supplier_transaction(*, entry: SupplierTransaction) -> None:
+    supplier = Supplier.objects.select_for_update().get(pk=entry.supplier_id)
+    entry = SupplierTransaction.objects.select_for_update().get(pk=entry.pk)
+    if entry.transaction_type == SupplierTransaction.TransactionType.DEBIT:
+        balance_after_void = get_supplier_balance(supplier=supplier) - entry.amount
+        if balance_after_void < 0:
+            raise ValidationError(
+                {"transaction": "لومړی اړوند ورکړې لغوه کړئ؛ پاتې حساب منفي کېدای نشي."}
+            )
+    entry.delete()

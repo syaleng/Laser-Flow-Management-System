@@ -80,6 +80,18 @@ export async function recordDesignOrderPayment(
   return data.data;
 }
 
+export async function voidDesignOrderPayment(
+  orderId: string,
+  paymentId: string,
+  reason: string,
+): Promise<DesignOrder> {
+  const { data } = await apiClient.post<ApiEnvelope<DesignOrder>>(
+    `/design-orders/${orderId}/payments/${paymentId}/void/`,
+    { reason },
+  );
+  return data.data;
+}
+
 export async function getOverdueDebtReminders(): Promise<{
   data: OverdueDebtReminder[];
   count: number;

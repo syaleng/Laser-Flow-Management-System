@@ -41,13 +41,13 @@ export function CustomersPage() {
   };
 
   return (
-    <section dir="rtl" className="text-right">
-      <div className="mb-7 flex flex-col items-start gap-4 text-right">
+    <section dir="rtl" className="detail-page list-page text-right">
+      <div className="page-header items-start text-right">
         <div className="w-full text-right">
-          <h1 className="text-3xl font-bold tracking-tight text-slate-950">
+          <h1 className="page-title">
             د مشتريانو لېست
           </h1>
-          <p className="mt-2 text-base leading-7 text-slate-500">
+          <p className="page-description">
             د مشتريانو معلومات او اړیکې اداره کړئ.
           </p>
         </div>
@@ -146,7 +146,7 @@ export function CustomersPage() {
       )}
 
       {customers.data && customers.data.data.length > 0 && (
-        <div dir="rtl" className="overflow-hidden rounded-2xl border border-slate-200 bg-white text-right shadow-sm">
+        <div dir="rtl" className="customer-list-table overflow-hidden rounded-2xl border border-slate-200 bg-white text-right shadow-sm">
           <div className="overflow-x-auto">
             <table dir="rtl" className="data-table w-full min-w-[860px] text-right text-sm">
               <thead className="border-b border-slate-200 bg-slate-50 text-xs font-semibold tracking-wide text-slate-500">

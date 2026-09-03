@@ -18,15 +18,18 @@ from apps.design_orders.models import DesignOrder, DesignOrderPayment, DesignOrd
 from . import services
 from .dashboard import DashboardFilterSerializer, build_dashboard
 from .models import (
+    CashReconciliation,
     DailyClosing,
     Expense,
     JournalActivity,
     LoanStatus,
     MoneyLoan,
     PayableAccount,
+    PayableOrigin,
     PayableRepayment,
 )
 from .serializers import (
+    CashReconciliationSerializer,
     DailyClosingSerializer,
     ExpenseSerializer,
     JournalActivitySerializer,
@@ -34,6 +37,7 @@ from .serializers import (
     PayableAccountSerializer,
     RepaymentHistorySerializer,
     RepaymentSerializer,
+    VoidReasonSerializer,
 )
 
 
@@ -45,6 +49,64 @@ def period_bounds(request):
     today = timezone.localdate()
     selected = request.query_params.get("date") or request.data.get("date")
     return date.fromisoformat(selected or str(today))
+
+
+class CashReconciliationViewSet(viewsets.ReadOnlyModelViewSet):
+    serializer_class = CashReconciliationSerializer
+    permission_classes = [HasRequiredCapability]
+    required_capability = Capability.MANAGE_EXPENSES
+
+    def get_queryset(self):
+        queryset = CashReconciliation.objects.select_related("created_by")
+        if selected_date := self.request.query_params.get("date"):
+            queryset = queryset.filter(reconciliation_date=selected_date)
+        return queryset
+
+    def create(self, request):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        selected_date = serializer.validated_data["reconciliation_date"]
+        system_balance = services.calculate_daily_finances(selected_date)["closing_balance"]
+        actual_balance = serializer.validated_data["actual_balance"]
+        reconciliation = serializer.save(
+            system_balance=system_balance,
+            difference=actual_balance - system_balance,
+            created_by=request.user,
+        )
+        JournalActivity.objects.create(
+            entity_type="cash_reconciliation",
+            entity_id=reconciliation.id,
+            action="created",
+            changed_fields={
+                "date": str(selected_date),
+                "system_balance": str(system_balance),
+                "actual_balance": str(actual_balance),
+                "difference": str(reconciliation.difference),
+                "reason": reconciliation.reason,
+            },
+            actor=request.user,
+        )
+        return Response({"data": self.get_serializer(reconciliation).data}, status=201)
+
+    @action(detail=True, methods=["post"])
+    def void(self, request, pk=None):
+        reason = VoidReasonSerializer(data=request.data)
+        reason.is_valid(raise_exception=True)
+        reconciliation = self.get_object()
+        values = {
+            "difference": str(reconciliation.difference),
+            "reason": reason.validated_data["reason"],
+        }
+        entity_id = reconciliation.id
+        reconciliation.delete()
+        JournalActivity.objects.create(
+            entity_type="cash_reconciliation",
+            entity_id=entity_id,
+            action="voided",
+            changed_fields=values,
+            actor=request.user,
+        )
+        return Response(status=204)
 
 
 class ExpenseViewSet(viewsets.ModelViewSet):
@@ -78,6 +140,23 @@ class ExpenseViewSet(viewsets.ModelViewSet):
             changed_fields=activity_values(serializer.validated_data),
             actor=self.request.user,
         )
+
+    @action(detail=True, methods=["post"])
+    def void(self, request, pk=None):
+        reason = VoidReasonSerializer(data=request.data)
+        reason.is_valid(raise_exception=True)
+        expense = self.get_object()
+        values = {"amount": str(expense.amount), "reason": reason.validated_data["reason"]}
+        entity_id = expense.id
+        expense.delete()
+        JournalActivity.objects.create(
+            entity_type="expense",
+            entity_id=entity_id,
+            action="voided",
+            changed_fields=values,
+            actor=request.user,
+        )
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
 
 class MoneyLoanViewSet(viewsets.ModelViewSet):
@@ -118,6 +197,48 @@ class MoneyLoanViewSet(viewsets.ModelViewSet):
             },
             status=status.HTTP_201_CREATED,
         )
+
+    @action(detail=True, methods=["post"], url_path=r"repayments/(?P<repayment_id>[^/.]+)/void")
+    def void_repayment(self, request, pk=None, repayment_id=None):
+        reason = VoidReasonSerializer(data=request.data)
+        reason.is_valid(raise_exception=True)
+        loan = self.get_object()
+        repayment = loan.repayments.filter(pk=repayment_id).first()
+        if repayment is None:
+            from rest_framework.exceptions import NotFound
+
+            raise NotFound("Repayment not found.")
+        values = {"amount": str(repayment.amount), "reason": reason.validated_data["reason"]}
+        entity_id = repayment.id
+        repayment.delete()
+        self._sync_status(loan)
+        JournalActivity.objects.create(
+            entity_type="loan_repayment",
+            entity_id=entity_id,
+            action="voided",
+            changed_fields=values,
+            actor=request.user,
+        )
+        return Response({"data": MoneyLoanSerializer(loan).data})
+
+    @action(detail=True, methods=["post"])
+    def void(self, request, pk=None):
+        reason = VoidReasonSerializer(data=request.data)
+        reason.is_valid(raise_exception=True)
+        loan = self.get_object()
+        if loan.repayments.exists():
+            raise serializers.ValidationError({"loan": "لومړی د پور ټولې بېرته ورکړې لغوه کړئ."})
+        values = {"amount": str(loan.amount), "reason": reason.validated_data["reason"]}
+        entity_id = loan.id
+        loan.delete()
+        JournalActivity.objects.create(
+            entity_type="loan",
+            entity_id=entity_id,
+            action="voided",
+            changed_fields=values,
+            actor=request.user,
+        )
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
     def perform_create(self, serializer):
         loan = serializer.save(created_by=self.request.user, updated_by=self.request.user)
@@ -206,6 +327,47 @@ class PayableAccountViewSet(viewsets.ModelViewSet):
             status=status.HTTP_201_CREATED,
         )
 
+    @action(detail=True, methods=["post"], url_path=r"repayments/(?P<repayment_id>[^/.]+)/void")
+    def void_repayment(self, request, pk=None, repayment_id=None):
+        reason = VoidReasonSerializer(data=request.data)
+        reason.is_valid(raise_exception=True)
+        payable = self.get_object()
+        repayment = payable.repayments.filter(pk=repayment_id).first()
+        if repayment is None:
+            from rest_framework.exceptions import NotFound
+
+            raise NotFound("Repayment not found.")
+        values = {"amount": str(repayment.amount), "reason": reason.validated_data["reason"]}
+        entity_id = repayment.id
+        repayment.delete()
+        JournalActivity.objects.create(
+            entity_type="payable_repayment",
+            entity_id=entity_id,
+            action="voided",
+            changed_fields=values,
+            actor=request.user,
+        )
+        return Response({"data": PayableAccountSerializer(payable).data})
+
+    @action(detail=True, methods=["post"])
+    def void(self, request, pk=None):
+        reason = VoidReasonSerializer(data=request.data)
+        reason.is_valid(raise_exception=True)
+        payable = self.get_object()
+        if payable.repayments.exists():
+            raise serializers.ValidationError({"payable": "لومړی ټولې ثبت شوې ورکړې لغوه کړئ."})
+        values = {"amount": str(payable.amount), "reason": reason.validated_data["reason"]}
+        entity_id = payable.id
+        payable.delete()
+        JournalActivity.objects.create(
+            entity_type="payable",
+            entity_id=entity_id,
+            action="voided",
+            changed_fields=values,
+            actor=request.user,
+        )
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
     def perform_create(self, serializer):
         payable = serializer.save(created_by=self.request.user, updated_by=self.request.user)
         initial_paid = payable.paid_amount
@@ -263,9 +425,9 @@ def journal_summary(request):
     expenses = Expense.objects.filter(expense_date=selected_date).aggregate(total=Sum("amount"))[
         "total"
     ] or Decimal("0")
-    payable_income = PayableAccount.objects.filter(payable_date=selected_date).aggregate(
-        total=Sum("amount")
-    )["total"] or Decimal("0")
+    payable_income = PayableAccount.objects.filter(
+        payable_date=selected_date, origin=PayableOrigin.CASH_LOAN
+    ).aggregate(total=Sum("amount"))["total"] or Decimal("0")
     payable_returns = PayableRepayment.objects.filter(payment_date=selected_date).aggregate(
         total=Sum("amount")
     )["total"] or Decimal("0")
@@ -337,6 +499,7 @@ def journal_summary(request):
                 "loans_given": finances["loan_given"],
                 "loan_returns": finances["loan_returns"],
                 "payable_income": payable_income,
+                "money_received": finances["money_received"],
                 "payable_returns": payable_returns,
                 "total_receivables": receivables,
                 "total_payables": payables,
@@ -346,6 +509,7 @@ def journal_summary(request):
                 "opening_balance": finances["opening_balance"],
                 "customer_payments": finances["customer_payments"],
                 "other_income": finances["other_income"],
+                "cash_adjustments": finances["cash_adjustments"],
                 "loan_given": finances["loan_given"],
                 "payable_payments": finances["payable_payments"],
                 "closing_balance": finances["closing_balance"],
@@ -390,6 +554,7 @@ def close_day(request):
             "opening_balance": finances["opening_balance"],
             "customer_payments": finances["customer_payments"],
             "other_income": finances["other_income"],
+            "money_received": finances["money_received"],
             "loan_returns": finances["loan_returns"],
             "loan_given": finances["loan_given"],
             "payable_payments": finances["payable_payments"],
@@ -442,9 +607,9 @@ def journal_report(request):
     loans = MoneyLoan.objects.filter(loan_date__range=(start, end)).aggregate(total=Sum("amount"))[
         "total"
     ] or Decimal("0")
-    payable_income = PayableAccount.objects.filter(payable_date__range=(start, end)).aggregate(
-        total=Sum("amount")
-    )["total"] or Decimal("0")
+    payable_income = PayableAccount.objects.filter(
+        payable_date__range=(start, end), origin=PayableOrigin.CASH_LOAN
+    ).aggregate(total=Sum("amount"))["total"] or Decimal("0")
     payable_returns = PayableRepayment.objects.filter(payment_date__range=(start, end)).aggregate(
         total=Sum("amount")
     )["total"] or Decimal("0")
@@ -465,6 +630,7 @@ def journal_report(request):
                 "opening_balance": finances["opening_balance"],
                 "customer_payments": finances["customer_payments"],
                 "other_income": finances["other_income"],
+                "cash_adjustments": finances["cash_adjustments"],
                 "loan_given": finances["loan_given"],
                 "payable_payments": finances["payable_payments"],
                 "closing_balance": finances["closing_balance"],

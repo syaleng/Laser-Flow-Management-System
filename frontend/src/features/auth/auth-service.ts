@@ -20,3 +20,9 @@ export async function logout(): Promise<void> {
   await apiClient.post("/auth/logout/");
 }
 
+export async function changePassword(currentPassword: string, newPassword: string): Promise<void> {
+  await apiClient.post("/auth/change-password/", {
+    current_password: currentPassword,
+    new_password: newPassword,
+  });
+}

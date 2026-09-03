@@ -3,11 +3,11 @@ import { type FormEvent, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 
 import { ApiError } from "@/lib/api-client";
-import { formatAfn } from "@/lib/format";
+import { formatAfn, formatDate } from "@/lib/format";
 
 import { usePayments } from "./hooks";
 
-const paymentDate = (value: string) => new Date(`${value}T00:00:00`).toLocaleDateString("ps-AF");
+const paymentDate = formatDate;
 
 export function PaymentsPage() {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -35,8 +35,8 @@ export function PaymentsPage() {
   };
 
   return (
-    <section dir="rtl" className="text-right">
-      <div className="mb-7">
+    <section dir="rtl" className="payments-page text-right">
+      <div className="page-header block">
         <p className="text-sm font-semibold text-brand-600">مالي مديريت</p>
         <h1 className="mt-1 text-3xl font-bold tracking-tight text-slate-950">تادیات</h1>
         <p className="mt-2 text-base leading-7 text-slate-500">د ډیزاین فرمایشونو ټول ترلاسه شوي تادیات وګورئ.</p>

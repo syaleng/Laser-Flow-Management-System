@@ -1,4 +1,4 @@
-from django.contrib.auth import authenticate, password_validation
+from django.contrib.auth import authenticate
 from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError as DjangoValidationError
 from rest_framework import serializers
@@ -62,7 +62,8 @@ class ChangePasswordSerializer(serializers.Serializer):
         return value
 
     def validate_new_password(self, value):
-        password_validation.validate_password(value, self.context["request"].user)
+        if len(value) < 8:
+            raise serializers.ValidationError("Password must contain at least 8 characters.")
         return value
 
     def save(self, **kwargs):
@@ -70,6 +71,10 @@ class ChangePasswordSerializer(serializers.Serializer):
             user=self.context["request"].user,
             new_password=self.validated_data["new_password"],
         )
+
+
+class AdminResetPasswordSerializer(serializers.Serializer):
+    new_password = serializers.CharField(write_only=True, min_length=8, max_length=128)
 
 
 class LoginSerializer(TokenObtainPairSerializer):

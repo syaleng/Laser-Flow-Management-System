@@ -1,10 +1,11 @@
 import { zodResolver } from "@hookform/resolvers/zod";
-import { LoaderCircle, Search } from "lucide-react";
+import { ChevronDown, Hash, LoaderCircle, Phone, Search, UserRound } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { Link } from "react-router-dom";
 
 import { Button } from "@/components/ui/Button";
+import { Select, SelectContent, SelectItem, SelectTrigger } from "@/components/ui/select";
 import { useCustomers } from "@/features/customers/hooks";
 import { calculatePaymentStatus, designOrderSchema, type DesignOrderFormValues } from "./design-order-schema";
 
@@ -27,6 +28,8 @@ export function DesignOrderForm({ defaultValues, submitLabel, cancelTo, serverEr
   const total = (Number(materialQuantity) || 0) * (Number(price) || 0);
   const remaining = Math.max(0, total - (Number(paidAmount) || 0));
   const calculatedPaymentStatus = calculatePaymentStatus(total, Number(paidAmount) || 0);
+  const selectedCustomerId = watch("customer_id");
+  const selectedCustomer = customers.data?.data.find((customer) => customer.id === selectedCustomerId);
 
   useEffect(() => {
     setValue("payment_status", calculatedPaymentStatus, {
@@ -35,11 +38,11 @@ export function DesignOrderForm({ defaultValues, submitLabel, cancelTo, serverEr
     });
   }, [calculatedPaymentStatus, setValue]);
 
-  return <form dir="rtl" className="space-y-7 rounded-2xl border border-slate-200 bg-white p-6 text-right shadow-sm" onSubmit={handleSubmit(onSubmit)} noValidate>
+  return <form dir="rtl" className="detail-page space-y-7 rounded-2xl border border-slate-200 bg-white p-6 text-right shadow-sm" onSubmit={handleSubmit(onSubmit)} noValidate>
     <div className="rounded-xl border border-blue-100 bg-blue-50 px-4 py-3 text-sm leading-6 text-blue-900"><strong className="block">فرمایش په پنځو اسانه ګامونو ثبت کړئ</strong>مشتري وټاکئ، ډیزاین مشخص کړئ، شمېر او بیه ورکړئ، تادیه ثبت کړئ او نېټې وټاکئ.</div>
     <section className="rounded-2xl bg-slate-50 p-5"><h2 className="text-lg font-semibold text-slate-950"><span className="ml-2 inline-grid size-7 place-items-center rounded-full bg-brand-600 text-sm text-white">۱</span>مشتري وټاکئ</h2><p className="mt-1 text-sm text-slate-500">مشتري ولټوئ او بیا یې له لېست څخه وټاکئ.</p><div className="mt-4 grid gap-5 md:grid-cols-2">
       <label className="block text-sm font-semibold text-slate-700">د مشتري لټون<span className="relative block"><Search className="absolute right-3 top-5 size-4 text-slate-400" /><input className={`${inputClass} pr-10`} value={customerSearch} onChange={(event) => setCustomerSearch(event.target.value)} placeholder="د مشتري نوم، موبایل شمېره یا کوډ ولیکئ" /></span></label>
-      <label className="block text-sm font-semibold text-slate-700">مشتري <span className="text-red-500">*</span><select className={inputClass} {...register("customer_id")}><option value="">مشتري وټاکئ</option>{(customers.data?.data ?? []).map((customer) => <option key={customer.id} value={customer.id}>{customer.full_name} · {customer.customer_code} · {customer.phone || "شمېره نشته"}</option>)}</select><FieldError message={errors.customer_id?.message} /></label>
+      <label className="block text-sm font-semibold text-slate-700">مشتري <span className="text-red-500">*</span><input type="hidden" {...register("customer_id")} /><Select value={selectedCustomerId} onValueChange={(value) => setValue("customer_id", value, { shouldDirty: true, shouldValidate: true })}><SelectTrigger className="mt-2 h-auto min-h-14 w-full rounded-xl border-slate-300 bg-white px-3 py-2.5 text-right font-normal shadow-sm transition hover:border-blue-300 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-100"><span className="flex min-w-0 flex-1 items-center gap-3">{selectedCustomer ? <><span className="grid size-10 shrink-0 place-items-center rounded-xl bg-blue-50 text-brand-700"><UserRound className="size-5" /></span><span className="min-w-0 flex-1"><span className="block truncate text-sm font-bold text-slate-900">{selectedCustomer.full_name}</span><span className="mt-1 flex flex-wrap items-center gap-2 text-[11px] text-slate-500"><span dir="ltr" className="inline-flex items-center gap-1 rounded-md bg-slate-100 px-1.5 py-0.5"><Hash className="size-3" />{selectedCustomer.customer_code}</span><span dir="ltr" className="inline-flex items-center gap-1 rounded-md bg-emerald-50 px-1.5 py-0.5 text-emerald-700"><Phone className="size-3" />{selectedCustomer.phone || "شمېره نشته"}</span></span></span></> : <span className="text-sm text-slate-400">مشتري وټاکئ</span>}</span><ChevronDown className="size-4 shrink-0 text-slate-400" /></SelectTrigger><SelectContent className="z-30 max-h-72 overflow-y-auto rounded-xl border-slate-200 p-1.5 shadow-xl">{(customers.data?.data ?? []).map((customer) => <SelectItem key={customer.id} value={customer.id} className="flex items-center gap-3 rounded-lg px-3 py-2.5 transition hover:bg-blue-50"><span className="grid size-9 shrink-0 place-items-center rounded-lg bg-slate-100 text-slate-600"><UserRound className="size-4" /></span><span className="min-w-0 flex-1"><span className="block truncate font-bold text-slate-900">{customer.full_name}</span><span className="mt-1 flex flex-wrap items-center gap-2 text-[11px] text-slate-500"><span dir="ltr">{customer.customer_code}</span><span dir="ltr" className="text-emerald-700">{customer.phone || "شمېره نشته"}</span></span></span></SelectItem>)}{customers.data?.data.length === 0 && <p className="p-4 text-center text-sm font-normal text-slate-500">مشتري پیدا نه شو</p>}</SelectContent></Select><FieldError message={errors.customer_id?.message} /></label>
     </div></section>
 
     <section className="rounded-2xl bg-slate-50 p-5"><h2 className="text-lg font-semibold text-slate-950"><span className="ml-2 inline-grid size-7 place-items-center rounded-full bg-brand-600 text-sm text-white">۲</span>د ډیزاین معلومات</h2><p className="mt-1 text-sm text-slate-500">د کار ډول، رنګ او اندازه مشخص کړئ.</p><div className="mt-4 grid gap-5 md:grid-cols-2 lg:grid-cols-4">

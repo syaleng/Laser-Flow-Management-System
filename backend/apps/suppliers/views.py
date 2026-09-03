@@ -7,6 +7,7 @@ from rest_framework.response import Response
 
 from apps.accounts.authorization import Capability
 from apps.accounts.permissions import HasRequiredCapability
+from apps.daily_journal.models import JournalActivity
 
 from . import services
 from .models import Supplier, SupplierTransaction
@@ -14,6 +15,7 @@ from .serializers import (
     SupplierSerializer,
     SupplierTransactionInputSerializer,
     SupplierTransactionSerializer,
+    VoidSupplierTransactionSerializer,
 )
 
 
@@ -111,3 +113,43 @@ class SupplierViewSet(viewsets.ModelViewSet):
                 }
             }
         )
+
+    @action(detail=True, methods=["post"], url_path=r"transactions/(?P<transaction_id>[^/.]+)/void")
+    def void_transaction(self, request, pk=None, transaction_id=None):
+        serializer = VoidSupplierTransactionSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        supplier = self.get_object()
+        entry = supplier.transactions.filter(pk=transaction_id).first()
+        if entry is None:
+            from rest_framework.exceptions import NotFound
+
+            raise NotFound("Transaction not found.")
+        values = {
+            "amount": str(entry.amount),
+            "type": entry.transaction_type,
+            "reason": serializer.validated_data["reason"],
+        }
+        entity_id = entry.id
+        services.void_supplier_transaction(entry=entry)
+        JournalActivity.objects.create(
+            entity_type="supplier_transaction",
+            entity_id=entity_id,
+            action="voided",
+            changed_fields=values,
+            actor=request.user,
+        )
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+    @action(detail=True, methods=["post"])
+    def archive(self, request, pk=None):
+        supplier = self.get_object()
+        supplier.is_active = False
+        supplier.save(update_fields=["is_active", "updated_at"])
+        return Response({"data": self.get_serializer(supplier).data})
+
+    @action(detail=True, methods=["post"])
+    def restore(self, request, pk=None):
+        supplier = self.get_object()
+        supplier.is_active = True
+        supplier.save(update_fields=["is_active", "updated_at"])
+        return Response({"data": self.get_serializer(supplier).data})

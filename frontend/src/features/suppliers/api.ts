@@ -15,6 +15,10 @@ export async function createSupplier(input: { name: string; phone: string; descr
   const { data } = await apiClient.post<{ data: Supplier }>("/suppliers/", input);
   return data.data;
 }
+export async function updateSupplier(id: string, input: { name: string; phone: string; description: string }): Promise<Supplier> {
+  const { data } = await apiClient.patch<{ data: Supplier }>(`/suppliers/${id}/`, input);
+  return data.data;
+}
 
 export async function createSupplierTransaction(
   id: string,
@@ -28,4 +32,8 @@ export async function createSupplierTransaction(
 export async function getSupplierTransactions(id: string): Promise<SupplierTransactions> {
   const { data } = await apiClient.get<{ data: SupplierTransactions }>(`/suppliers/${id}/transactions/`);
   return data.data;
+}
+
+export async function voidSupplierTransaction(id: string, transactionId: string, reason: string) {
+  await apiClient.post(`/suppliers/${id}/transactions/${transactionId}/void/`, { reason });
 }

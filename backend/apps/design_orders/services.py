@@ -1,12 +1,13 @@
-from datetime import timedelta
+from datetime import datetime, time, timedelta
+from decimal import Decimal
 from pathlib import Path
 
 from django.conf import settings
 from django.core.exceptions import ValidationError
-from django.db import transaction
+from django.db import models, transaction
 from django.utils import timezone
 
-from apps.accounting.models import EntryType
+from apps.accounting.models import CustomerLedgerEntry, EntryType
 from apps.accounting.services import create_ledger_entry
 from apps.daily_journal.models import JournalActivity
 
@@ -36,7 +37,7 @@ ALLOWED_TRANSITIONS = {
         DesignOrderStatus.DELIVERED,
         DesignOrderStatus.CANCELLED,
     },
-    DesignOrderStatus.DELIVERED: set(),
+    DesignOrderStatus.DELIVERED: {DesignOrderStatus.CANCELLED},
     DesignOrderStatus.CANCELLED: set(),
 }
 
@@ -93,8 +94,9 @@ def create_design_order(*, data: dict, created_by) -> DesignOrder:
     order = DesignOrder(created_by=created_by, **data)
     order.full_clean()
     order.save()
+    initial_payment = None
     if order.paid_amount > 0:
-        DesignOrderPayment.objects.create(
+        initial_payment = DesignOrderPayment.objects.create(
             design_order=order,
             amount=order.paid_amount,
             recorded_by=created_by,
@@ -105,11 +107,23 @@ def create_design_order(*, data: dict, created_by) -> DesignOrder:
         customer=order.customer,
         entry_type=EntryType.DEBIT,
         amount=order.total_amount,
-        description=f"Design order {order.order_number}",
+        description=f"د فرمایش حساب — {order.order_number}",
         source_type="design_order",
         source_id=str(order.id),
         created_by=created_by,
+        posted_at=timezone.make_aware(datetime.combine(order.order_date, time.min)),
     )
+    if initial_payment is not None:
+        create_ledger_entry(
+            customer=order.customer,
+            entry_type=EntryType.CREDIT,
+            amount=initial_payment.amount,
+            description=f"د فرمایش تادیه — {order.order_number}",
+            source_type="design_order_payment",
+            source_id=str(initial_payment.id),
+            created_by=created_by,
+            posted_at=timezone.make_aware(datetime.combine(initial_payment.payment_date, time.max)),
+        )
     DesignOrderStatusHistory.objects.create(
         design_order=order,
         from_status=None,
@@ -173,8 +187,22 @@ def transition_design_order(*, order: DesignOrder, target_status: str, changed_b
         if order.payment_due_date != expected_due_date:
             order.payment_due_date = expected_due_date
             update_fields.append("payment_due_date")
+    elif target_status == DesignOrderStatus.CANCELLED:
+        order.actual_delivery_date = None
+        update_fields.append("actual_delivery_date")
     order.full_clean()
     order.save(update_fields=update_fields)
+    if target_status == DesignOrderStatus.CANCELLED:
+        payment_ids = list(order.payment_history.values_list("id", flat=True))
+        CustomerLedgerEntry.objects.filter(
+            customer=order.customer,
+        ).filter(
+            models.Q(source_type="design_order", source_id=str(order.id))
+            | models.Q(
+                source_type="design_order_payment",
+                source_id__in=[str(item) for item in payment_ids],
+            )
+        ).delete()
     DesignOrderStatusHistory.objects.create(
         design_order=order,
         from_status=previous,
@@ -187,7 +215,7 @@ def transition_design_order(*, order: DesignOrder, target_status: str, changed_b
 
 @transaction.atomic
 def record_design_order_payment(
-    *, order: DesignOrder, amount, recorded_by, note="", payment_date=None
+    *, order: DesignOrder, amount, recorded_by, note="", payment_date=None, ledger_description=None
 ):
     order = DesignOrder.objects.select_for_update().get(pk=order.pk)
     if order.status == DesignOrderStatus.CANCELLED:
@@ -217,10 +245,11 @@ def record_design_order_payment(
         customer=order.customer,
         entry_type=EntryType.CREDIT,
         amount=amount,
-        description=f"Payment received for {order.order_number}",
+        description=ledger_description or f"د فرمایش تادیه — {order.order_number}",
         source_type="design_order_payment",
         source_id=str(payment.id),
         created_by=recorded_by,
+        posted_at=timezone.make_aware(datetime.combine(payment.payment_date, time.max)),
     )
     JournalActivity.objects.create(
         entity_type="payment",
@@ -236,6 +265,38 @@ def record_design_order_payment(
         actor=recorded_by,
     )
     return order, payment
+
+
+@transaction.atomic
+def void_design_order_payment(*, payment: DesignOrderPayment, voided_by, reason: str) -> DesignOrder:
+    payment = DesignOrderPayment.objects.select_for_update().select_related(
+        "design_order", "design_order__customer"
+    ).get(pk=payment.pk)
+    order = DesignOrder.objects.select_for_update().get(pk=payment.design_order_id)
+    original_amount = payment.amount
+
+    CustomerLedgerEntry.objects.filter(
+        source_type="design_order_payment", source_id=str(payment.id)
+    ).delete()
+    order.paid_amount = max(order.paid_amount - original_amount, Decimal("0.00"))
+    order.payment_status = PaymentStatus.CREDIT if order.paid_amount == 0 else PaymentStatus.PARTIAL
+    order.full_clean()
+    order.save(update_fields=["paid_amount", "payment_status", "updated_at"])
+    JournalActivity.objects.create(
+        entity_type="payment",
+        entity_id=payment.id,
+        action="payment_voided",
+        changed_fields={
+            "customer_name": order.customer.full_name,
+            "order_number": order.order_number,
+            "amount": str(original_amount),
+            "reason": reason,
+            "voided_by": voided_by.full_name,
+        },
+        actor=voided_by,
+    )
+    payment.delete()
+    return order
 
 
 @transaction.atomic

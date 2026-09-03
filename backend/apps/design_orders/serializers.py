@@ -92,6 +92,10 @@ class RecordPaymentSerializer(serializers.Serializer):
     payment_date = serializers.DateField(required=False)
 
 
+class VoidPaymentSerializer(serializers.Serializer):
+    reason = serializers.CharField(min_length=3, max_length=500)
+
+
 class DesignOrderSerializer(serializers.ModelSerializer):
     customer = CustomerSummarySerializer(read_only=True)
     design_category = DesignCategorySerializer(read_only=True)

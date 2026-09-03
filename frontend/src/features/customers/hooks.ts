@@ -85,6 +85,7 @@ export function useUpdateCustomer(customerId: string) {
     onSuccess: (customer) => {
       queryClient.setQueryData(customerKeys.detail(customerId), customer);
       void queryClient.invalidateQueries({ queryKey: customerKeys.lists() });
+      void queryClient.invalidateQueries({ queryKey: ["design-orders", "overdue-reminders"] });
     },
   });
 }
@@ -97,7 +98,7 @@ export function useSetCustomerArchived(customerId: string) {
     onSuccess: (customer) => {
       queryClient.setQueryData(customerKeys.detail(customerId), customer);
       void queryClient.invalidateQueries({ queryKey: customerKeys.lists() });
+      void queryClient.invalidateQueries({ queryKey: ["design-orders", "overdue-reminders"] });
     },
   });
 }
-

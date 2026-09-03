@@ -378,6 +378,50 @@ def test_manager_receives_overdue_debt_reminder_with_whatsapp_link(
 
 
 @pytest.mark.django_db
+def test_manager_can_void_wrong_payment_and_balances_are_recalculated(
+    client, manager, customer, category
+):
+    client.force_authenticate(manager)
+    created = client.post(reverse("design-order-list"), order_payload(customer, category))
+    order = DesignOrder.objects.get(pk=created.data["data"]["id"])
+    payment = order.payment_history.get()
+
+    response = client.post(
+        reverse(
+            "design-order-void-payment",
+            kwargs={"pk": order.id, "payment_id": payment.id},
+        ),
+        {"reason": "غلط مقدار ثبت شوی و"},
+    )
+
+    assert response.status_code == 200
+    order.refresh_from_db()
+    assert order.paid_amount == Decimal("0.00")
+    assert response.data["data"]["remaining_amount"] == Decimal("1000.00")
+    assert not DesignOrderPayment.objects.filter(pk=payment.id).exists()
+    assert JournalActivity.objects.filter(action="payment_voided", entity_id=payment.id).exists()
+
+
+@pytest.mark.django_db
+def test_delivered_order_can_be_cancelled_as_safe_delete(client, manager, customer, category):
+    client.force_authenticate(manager)
+    created = client.post(reverse("design-order-list"), order_payload(customer, category))
+    order_id = created.data["data"]["id"]
+    status_url = reverse("design-order-transition-status", kwargs={"pk": order_id})
+    for target in (
+        DesignOrderStatus.DESIGN_PREPARATION,
+        DesignOrderStatus.CUTTING,
+        DesignOrderStatus.READY_FOR_DELIVERY,
+        DesignOrderStatus.DELIVERED,
+        DesignOrderStatus.CANCELLED,
+    ):
+        response = client.post(status_url, {"status": target})
+        assert response.status_code == 200
+
+    assert response.data["data"]["status"] == DesignOrderStatus.CANCELLED
+
+
+@pytest.mark.django_db
 def test_operator_cannot_access_admin_debt_reminders(client, operator):
     client.force_authenticate(operator)
     assert client.get(reverse("design-order-overdue-reminders")).status_code == 403

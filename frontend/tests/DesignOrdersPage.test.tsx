@@ -15,6 +15,7 @@ vi.mock("@/features/design-orders/hooks", () => ({
         design_category: { id: "category-1", name: "Scarf" },
         design_name: "Floral scarf edge",
         cut_quantity: 40,
+        material_quantity: 40,
         unit_price: "25.00",
         total_amount: "1000.00",
         paid_amount: "400.00",

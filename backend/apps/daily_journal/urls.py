@@ -2,6 +2,7 @@ from django.urls import include, path
 from rest_framework.routers import DefaultRouter
 
 from .views import (
+    CashReconciliationViewSet,
     DailyClosingListView,
     ExpenseViewSet,
     JournalActivityListView,
@@ -17,6 +18,7 @@ router = DefaultRouter()
 router.register("expenses", ExpenseViewSet, basename="journal-expense")
 router.register("loans", MoneyLoanViewSet, basename="journal-loan")
 router.register("payables", PayableAccountViewSet, basename="journal-payable")
+router.register("cash-reconciliations", CashReconciliationViewSet, basename="cash-reconciliation")
 
 urlpatterns = [
     path("dashboard/", dashboard, name="dashboard"),

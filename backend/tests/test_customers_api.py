@@ -1,12 +1,37 @@
+from datetime import timedelta
 from decimal import Decimal
 
 import pytest
 from django.urls import reverse
+from django.utils import timezone
 from rest_framework.test import APIClient
 
-from apps.accounts.models import User, UserRole
 from apps.accounting.models import CustomerLedgerEntry, EntryType
+from apps.accounts.models import User, UserRole
 from apps.customers.models import Customer
+from apps.design_orders.models import DesignOrderPayment, DesignOrderStatus
+from apps.design_orders.services import create_design_order, transition_design_order
+
+
+def create_order(customer, owner, amount="1000.00", paid="0.00"):
+    return create_design_order(
+        data={
+            "customer": customer,
+            "design_name": "Customer payment regression order",
+            "cut_quantity": 1,
+            "unit_price": Decimal(amount),
+            "material_quantity": 1,
+            "paid_amount": Decimal(paid),
+            "payment_status": "PARTIAL" if Decimal(paid) else "CREDIT",
+            "design_type": "SIMPLE",
+            "color_count": "1",
+            "gemstone_size": 5,
+            "baran_size_mm": Decimal("4.00"),
+            "order_date": timezone.localdate(),
+            "expected_delivery_date": timezone.localdate() + timedelta(days=2),
+        },
+        created_by=owner,
+    )
 
 
 @pytest.fixture
@@ -138,9 +163,7 @@ def test_customer_list_includes_ledger_derived_current_debt(client, owner, custo
 
 @pytest.mark.django_db
 def test_customer_payment_creates_credit_and_updates_balance(client, owner, customer):
-    CustomerLedgerEntry.objects.create(
-        customer=customer, entry_type=EntryType.DEBIT, amount=Decimal("1200.00"), created_by=owner
-    )
+    create_order(customer, owner, "1200.00")
     client.force_authenticate(owner)
 
     response = client.post(
@@ -153,6 +176,87 @@ def test_customer_payment_creates_credit_and_updates_balance(client, owner, cust
     assert entry.amount == Decimal("600.00")
     assert entry.description == "Cash payment"
     assert Decimal(response.data["data"]["balance"]) == Decimal("600.00")
+
+
+@pytest.mark.django_db
+def test_customer_payment_limits_and_accounting_regression(client, owner, customer):
+    order = create_order(customer, owner, "1000.00", "250.00")
+    client.force_authenticate(owner)
+    url = reverse("customer-payments", kwargs={"pk": customer.pk})
+
+    partial = client.post(url, {"amount": "300.00", "payment_date": timezone.localdate()})
+    exact = client.post(url, {"amount": "450.00", "payment_date": timezone.localdate()})
+
+    assert partial.status_code == 201
+    assert exact.status_code == 201
+    order.refresh_from_db()
+    assert order.paid_amount == Decimal("1000.00")
+    assert Decimal(exact.data["data"]["balance"]) == Decimal("0.00")
+    assert list(
+        DesignOrderPayment.objects.filter(design_order=order).values_list("amount", flat=True)
+    ) == [Decimal("450.00"), Decimal("300.00"), Decimal("250.00")]
+
+    payment_count = DesignOrderPayment.objects.count()
+    ledger_count = CustomerLedgerEntry.objects.count()
+    overpayment = client.post(url, {"amount": "0.01"})
+    assert overpayment.status_code == 400
+    assert "پاتې حساب صفر" in str(overpayment.data)
+    assert DesignOrderPayment.objects.count() == payment_count
+    assert CustomerLedgerEntry.objects.count() == ledger_count
+
+
+@pytest.mark.django_db
+def test_customer_overpayment_has_zero_cash_report_and_database_effect(client, owner, customer):
+    order = create_order(customer, owner, "1000.00", "900.00")
+    client.force_authenticate(owner)
+    today = timezone.localdate()
+    payment_count = DesignOrderPayment.objects.count()
+    ledger_count = CustomerLedgerEntry.objects.count()
+
+    response = client.post(
+        reverse("customer-payments", kwargs={"pk": customer.pk}),
+        {"amount": "101.00", "payment_date": today},
+    )
+
+    assert response.status_code == 400
+    assert "پاتې حساب 100.00 افغانۍ" in str(response.data)
+    order.refresh_from_db()
+    assert order.paid_amount == Decimal("900.00")
+    assert DesignOrderPayment.objects.count() == payment_count
+    assert CustomerLedgerEntry.objects.count() == ledger_count
+    dashboard = client.get(
+        reverse("dashboard"), {"period": "custom", "start_date": today, "end_date": today}
+    ).data["data"]
+    report = client.get(
+        reverse("financial-report"),
+        {"period": "custom", "start_date": today, "end_date": today},
+    ).data["data"]
+    assert dashboard["cards"]["received_payments"] == "900.00"
+    assert report["summary"]["received_payments"] == "900.00"
+    assert report["summary"]["customer_receivables"] == "100.00"
+
+
+@pytest.mark.django_db
+def test_customer_payment_ignores_cancelled_orders(client, owner, customer):
+    cancelled = create_order(customer, owner, "500.00")
+    active = create_order(customer, owner, "200.00")
+    transition_design_order(
+        order=cancelled,
+        target_status=DesignOrderStatus.CANCELLED,
+        changed_by=owner,
+    )
+    client.force_authenticate(owner)
+
+    response = client.post(
+        reverse("customer-payments", kwargs={"pk": customer.pk}), {"amount": "200.00"}
+    )
+
+    assert response.status_code == 201
+    active.refresh_from_db()
+    cancelled.refresh_from_db()
+    assert active.paid_amount == Decimal("200.00")
+    assert cancelled.paid_amount == Decimal("0.00")
+    assert Decimal(response.data["data"]["balance"]) == Decimal("0.00")
 
 
 @pytest.mark.django_db

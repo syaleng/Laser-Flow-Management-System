@@ -13,6 +13,7 @@ import {
   getOverdueDebtReminders,
   recordDesignOrderPayment,
   updateDesignOrder,
+  voidDesignOrderPayment,
 } from "./api";
 import type { DesignOrderInput, DesignOrderListParams, DesignOrderStatus } from "./types";
 
@@ -76,6 +77,23 @@ export function useRecordDesignOrderPayment(id: string) {
   return useMutation({
     mutationFn: (input: { amount: number; note?: string; payment_date?: string }) =>
       recordDesignOrderPayment(id, input),
+    onSuccess: (order) => {
+      client.setQueryData(designOrderKeys.detail(id), order);
+      void client.invalidateQueries({ queryKey: designOrderKeys.lists() });
+      void client.invalidateQueries({ queryKey: designOrderKeys.overdueReminders });
+      void client.invalidateQueries({ queryKey: customerKeys.detail(order.customer.id) });
+      void client.invalidateQueries({ queryKey: paymentKeys.all });
+      void client.invalidateQueries({ queryKey: journalKeys.all });
+      void client.invalidateQueries({ queryKey: ["dashboard"] });
+    },
+  });
+}
+
+export function useVoidDesignOrderPayment(id: string) {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: ({ paymentId, reason }: { paymentId: string; reason: string }) =>
+      voidDesignOrderPayment(id, paymentId, reason),
     onSuccess: (order) => {
       client.setQueryData(designOrderKeys.detail(id), order);
       void client.invalidateQueries({ queryKey: designOrderKeys.lists() });

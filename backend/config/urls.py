@@ -4,6 +4,7 @@ from django.contrib import admin
 from django.urls import include, path
 from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView
 
+from apps.common.backup_views import BackupDetailView, BackupListCreateView, BackupRestoreView
 from apps.common.views import HealthCheckView
 from apps.design_orders.views import PaymentListView
 
@@ -19,6 +20,9 @@ urlpatterns = [
     path("api/v1/payments/", PaymentListView.as_view(), name="payments"),
     path("api/v1/suppliers/", include("apps.suppliers.urls")),
     path("api/v1/reports/", include("apps.reports.urls")),
+    path("api/v1/backups/", BackupListCreateView.as_view(), name="backup-list-create"),
+    path("api/v1/backups/restore/", BackupRestoreView.as_view(), name="backup-restore"),
+    path("api/v1/backups/<str:filename>/", BackupDetailView.as_view(), name="backup-detail"),
     path("api/v1/schema/", SpectacularAPIView.as_view(), name="api-schema"),
     path(
         "api/v1/docs/",

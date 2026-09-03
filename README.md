@@ -70,7 +70,7 @@ python -m pip install -e "backend[dev]"
 Set-Location backend
 python manage.py migrate
 python manage.py createsuperuser
-python manage.py runserver
+python manage.py runserver 8001
 ```
 
 Frontend:
@@ -79,6 +79,11 @@ Frontend:
 npm --prefix frontend ci
 npm run dev
 ```
+
+From the repository root, the backend can also be started with
+`npm run dev:backend`. Native development uses port 8001 because port 8000 is
+frequently occupied by other local services; Docker continues to use port 8000
+inside its own network.
 
 The root npm scripts delegate to the frontend package. Running from inside
 `frontend/` is also supported with the usual `npm run dev` command.

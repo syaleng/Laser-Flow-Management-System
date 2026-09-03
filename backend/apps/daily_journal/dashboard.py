@@ -10,6 +10,7 @@ from apps.design_orders.models import DesignOrder, DesignOrderPayment, DesignOrd
 from apps.suppliers.models import SupplierTransaction
 
 from .models import Expense, MoneyLoan, MoneyLoanRepayment, PayableAccount, PayableRepayment
+from .services import calculate_cash_finances
 
 ZERO = Decimal("0.00")
 
@@ -243,23 +244,7 @@ def build_dashboard(*, start, end, period):
             transaction_type=SupplierTransaction.TransactionType.CREDIT,
         )
     )
-    cash_balance = (
-        _sum(
-            DesignOrderPayment.objects.filter(payment_date__lte=end).exclude(
-                design_order__status=DesignOrderStatus.CANCELLED
-            )
-        )
-        - _sum(Expense.objects.filter(expense_date__lte=end))
-        - _sum(MoneyLoan.objects.filter(loan_date__lte=end))
-        + _sum(MoneyLoanRepayment.objects.filter(payment_date__lte=end))
-        - _sum(PayableRepayment.objects.filter(payment_date__lte=end))
-        - _sum(
-            SupplierTransaction.objects.filter(
-                transaction_date__lte=end,
-                transaction_type=SupplierTransaction.TransactionType.CREDIT,
-            )
-        )
-    )
+    cash_balance = calculate_cash_finances(start, end)["closing_balance"]
     customer_debt = _outstanding_customer_debt(end)
     loan_receivables = _loan_receivables(end)
     shop_payables = _shop_payables(end)

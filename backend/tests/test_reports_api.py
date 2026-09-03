@@ -135,6 +135,7 @@ def test_report_calculations_customer_debt_and_repayment_history(client, users):
         "shop_payables": "700.00",
         "loan_balances": "250.00",
         "cash_movement": "-275.00",
+        "cash_balance": "-275.00",
     }
     assert report["customers"][0]["customer_name"] == customer.full_name
     assert report["customers"][0]["payment_history"][0]["amount"] == "400.00"
@@ -142,6 +143,23 @@ def test_report_calculations_customer_debt_and_repayment_history(client, users):
     assert report["debts"]["shop_payables"][0]["remaining_balance"] == "400.00"
     assert report["debts"]["loan_repayments"][0]["amount"] == "50.00"
     assert report["charts"]["financial_trend"][0]["profit"] == "875.00"
+    assert report["expenses"] == {
+        "total": "125.00",
+        "groups": [
+            {"key": "machine", "label": "د ماشین اړوند مصارف", "total": "125.00"},
+            {"key": "daily", "label": "خوراکي او ورځني مصارف", "total": "0.00"},
+            {"key": "other", "label": "نور مصارف", "total": "0.00"},
+        ],
+        "rows": [
+            {
+                "group": "machine",
+                "group_label": "د ماشین اړوند مصارف",
+                "subcategory": "بورډ / تخته",
+                "amount": "125.00",
+                "percentage": "100.0",
+            }
+        ],
+    }
 
 
 @pytest.mark.django_db
@@ -202,6 +220,48 @@ def test_report_rejects_reversed_custom_range(client, users):
         {"period": "custom", "start_date": "2026-08-20", "end_date": "2026-08-01"},
     )
     assert response.status_code == 400
+
+
+@pytest.mark.django_db
+def test_expense_report_groups_real_categories_and_reconciles_profit(client, users):
+    manager = users[UserRole.MANAGER]
+    selected = date(2026, 8, 22)
+    customer = Customer.objects.create(full_name="Expense report customer")
+    order(manager, customer, selected, amount=Decimal("5000.00"))
+    for category, amount in (
+        ("DIAMONDS", "1500.00"),
+        ("MATERIALS", "1000.00"),
+        ("FOOD_STAFF", "500.00"),
+        ("OTHER", "200.00"),
+    ):
+        Expense.objects.create(
+            category=category,
+            amount=amount,
+            expense_date=selected,
+            created_by=manager,
+            updated_by=manager,
+        )
+
+    client.force_authenticate(manager)
+    response = client.get(
+        reverse("financial-report"),
+        {"period": "custom", "start_date": selected, "end_date": selected},
+    )
+
+    assert response.status_code == 200
+    data = response.data["data"]
+    groups = {row["key"]: Decimal(row["total"]) for row in data["expenses"]["groups"]}
+    rows = {row["subcategory"]: Decimal(row["amount"]) for row in data["expenses"]["rows"]}
+    assert groups == {
+        "machine": Decimal("2500.00"),
+        "daily": Decimal("500.00"),
+        "other": Decimal("200.00"),
+    }
+    assert rows["ډایان"] == Decimal("1500.00")
+    assert rows["بورډ / تخته"] == Decimal("1000.00")
+    assert sum(groups.values(), Decimal("0.00")) == Decimal(data["expenses"]["total"])
+    assert Decimal(data["summary"]["expenses"]) == Decimal("3200.00")
+    assert Decimal(data["summary"]["profit_loss"]) == Decimal("1800.00")
 
 
 @pytest.mark.django_db

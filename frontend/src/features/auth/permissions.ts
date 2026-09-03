@@ -7,7 +7,8 @@ export type Permission =
   | "manage_design_categories"
   | "manage_payments"
   | "manage_expenses"
-  | "view_reports";
+  | "view_reports"
+  | "manage_backups";
 
 const rolePermissions: Record<UserRole, ReadonlySet<Permission>> = {
   OWNER: new Set([
@@ -18,6 +19,7 @@ const rolePermissions: Record<UserRole, ReadonlySet<Permission>> = {
     "manage_payments",
     "manage_expenses",
     "view_reports",
+    "manage_backups",
   ]),
   MANAGER: new Set([
     "manage_customers",
@@ -37,4 +39,9 @@ export function userHasRole(user: User | null, ...roles: UserRole[]): boolean {
 
 export function userHasPermission(user: User | null, permission: Permission): boolean {
   return Boolean(user?.is_active && rolePermissions[user.role].has(permission));
+}
+
+export function defaultPathForUser(user: User | null): string {
+  if (!user) return "/login";
+  return userHasPermission(user, "view_reports") ? "/dashboard" : "/customers";
 }

@@ -4,6 +4,7 @@ from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 
 from .models import (
+    CashReconciliation,
     DailyClosing,
     Expense,
     ExpenseCategory,
@@ -80,6 +81,12 @@ class MoneyLoanSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError(
                 {"returned_amount": "Use the repayment action to record a return."}
             )
+        if not self.instance and attrs.get("returned_amount", Decimal("0.00")) > attrs.get(
+            "amount", Decimal("0.00")
+        ):
+            raise serializers.ValidationError(
+                {"returned_amount": "Returned amount cannot exceed the loan amount."}
+            )
         return attrs
 
     def to_representation(self, instance):
@@ -106,6 +113,7 @@ class DailyClosingSerializer(serializers.ModelSerializer):
             "opening_balance",
             "customer_payments",
             "other_income",
+            "money_received",
             "loan_returns",
             "loan_given",
             "payable_payments",
@@ -120,6 +128,7 @@ class DailyClosingSerializer(serializers.ModelSerializer):
             "opening_balance",
             "customer_payments",
             "other_income",
+            "money_received",
             "loan_returns",
             "loan_given",
             "payable_payments",
@@ -162,6 +171,7 @@ class PayableAccountSerializer(serializers.ModelSerializer):
             "id",
             "person_name",
             "debt_type",
+            "origin",
             "amount",
             "paid_amount",
             "remaining_balance",
@@ -189,6 +199,12 @@ class PayableAccountSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError(
                 {"paid_amount": "Use the repayment action to record a payment."}
             )
+        if not self.instance and attrs.get("paid_amount", Decimal("0.00")) > attrs.get(
+            "amount", Decimal("0.00")
+        ):
+            raise serializers.ValidationError(
+                {"paid_amount": "Paid amount cannot exceed the payable amount."}
+            )
         return attrs
 
     def to_representation(self, instance):
@@ -210,6 +226,43 @@ class RepaymentSerializer(serializers.Serializer):
     payment_date = serializers.DateField()
     payment_method = serializers.ChoiceField(choices=PaymentMethod.choices)
     note = serializers.CharField(required=False, allow_blank=True, max_length=500)
+
+
+class VoidReasonSerializer(serializers.Serializer):
+    reason = serializers.CharField(min_length=3, max_length=500)
+
+
+class CashReconciliationSerializer(serializers.ModelSerializer):
+    created_by_name = serializers.CharField(source="created_by.full_name", read_only=True)
+
+    class Meta:
+        model = CashReconciliation
+        fields = (
+            "id",
+            "reconciliation_date",
+            "system_balance",
+            "actual_balance",
+            "difference",
+            "reason",
+            "created_by_name",
+            "created_at",
+        )
+        read_only_fields = (
+            "system_balance",
+            "difference",
+            "created_by_name",
+            "created_at",
+        )
+
+    def validate_actual_balance(self, value):
+        if value < Decimal("0.00"):
+            raise serializers.ValidationError("Actual cash cannot be negative.")
+        return value
+
+    def validate_reason(self, value):
+        if len(value.strip()) < 3:
+            raise serializers.ValidationError("A clear reason is required.")
+        return value.strip()
 
 
 class RepaymentHistorySerializer(serializers.Serializer):
